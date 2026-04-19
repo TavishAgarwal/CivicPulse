@@ -1,0 +1,116 @@
+/* ── Ward Detail ─────────────────────────────────────────── */
+.ward-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 900px;
+}
+
+.ward-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ward-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ward-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.ward-css-score {
+  text-align: right;
+}
+
+.css-number {
+  font-family: var(--font-heading);
+  font-size: 2.4rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.css-label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+
+/* ── Anomaly Alert ──────────────────────────────────────── */
+.anomaly-alert {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-left: 3px solid var(--color-critical);
+  background: var(--color-critical-bg);
+}
+
+.anomaly-icon {
+  font-size: 1.6rem;
+}
+
+.anomaly-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-critical);
+}
+
+.anomaly-severity {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+/* ── Signal Grid ────────────────────────────────────────── */
+.signal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.signal-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+}
+
+.signal-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.signal-type {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-transform: capitalize;
+  margin-bottom: 2px;
+}
+
+.signal-intensity {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.signal-intensity strong {
+  color: var(--color-accent-light);
+}
+
+.signal-count {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Actions ────────────────────────────────────────────── */
+.ward-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 8px;
+}

@@ -1,0 +1,16 @@
+/* ── Volunteer Registry ──────────────────────────────────── */
+.volunteers-page { display: flex; flex-direction: column; gap: 16px; }
+.volunteer-filters { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+.volunteer-filters .form-group { min-width: 160px; }
+.volunteer-table-container { padding: 0; overflow-x: auto; }
+.handle-cell { font-weight: 500; color: var(--color-text-primary); font-family: var(--font-mono); font-size: 0.82rem; }
+
+/* Fatigue bar */
+.fatigue-bar {
+  width: 60px; height: 6px; background: var(--color-surface);
+  border-radius: var(--radius-full); overflow: hidden;
+}
+.fatigue-fill {
+  height: 100%; border-radius: var(--radius-full);
+  transition: width var(--transition-base);
+}

@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://civicpulse.org/schemas/volunteer.json",
+  "title": "Volunteer Profile Schema",
+  "description": "Volunteer profile for dispatch matching. No PII stored — only display handles.",
+  "type": "object",
+  "required": ["display_handle", "skills", "max_radius_km"],
+  "properties": {
+    "volunteer_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier"
+    },
+    "display_handle": {
+      "type": "string",
+      "description": "Anonymous display name (no real names)",
+      "minLength": 2,
+      "maxLength": 50
+    },
+    "skills": {
+      "type": "array",
+      "description": "Skill tags for dispatch matching",
+      "items": {
+        "type": "string",
+        "enum": ["medical", "logistics", "counseling", "teaching", "language"]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "max_radius_km": {
+      "type": "integer",
+      "description": "Maximum travel radius in kilometers",
+      "minimum": 1,
+      "maximum": 50,
+      "default": 10
+    },
+    "lat": {
+      "type": "number",
+      "description": "Volunteer base latitude (ward-level precision only)"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Volunteer base longitude (ward-level precision only)"
+    },
+    "city_id": {
+      "type": "string",
+      "description": "City the volunteer operates in"
+    },
+    "fatigue_score": {
+      "type": "number",
+      "description": "Current fatigue level: 0.0 = fully rested, 1.0 = unavailable",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.0
+    },
+    "performance_rating": {
+      "type": ["number", "null"],
+      "description": "Average coordinator rating (1-5), null if unrated",
+      "minimum": 0.0,
+      "maximum": 5.0
+    },
+    "is_available": {
+      "type": "boolean",
+      "description": "Whether volunteer is currently available for dispatch",
+      "default": true
+    },
+    "availability": {
+      "type": "object",
+      "description": "Structured availability schedule",
+      "properties": {
+        "days": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+          }
+        },
+        "hours_start": {
+          "type": "string",
+          "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)$"
+        },
+        "hours_end": {
+          "type": "string",
+          "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)$"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

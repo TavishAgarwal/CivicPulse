@@ -1,0 +1,21 @@
+/* ── Ward History ─────────────────────────────────────────── */
+.ward-history {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1000px;
+}
+.history-header { margin-bottom: 4px; }
+.history-chart { padding: 20px; }
+.chart-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 16px;
+}
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 16px;
+}
+.history-stats { padding: 20px; }

@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://civicpulse.org/schemas/dispatch.json",
+  "title": "Dispatch Record Schema",
+  "description": "Full dispatch audit record linking wards to volunteers with status tracking.",
+  "type": "object",
+  "required": ["ward_id", "volunteer_id", "css_at_dispatch", "status"],
+  "properties": {
+    "dispatch_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "ward_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The ward being dispatched to"
+    },
+    "volunteer_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The matched volunteer"
+    },
+    "css_at_dispatch": {
+      "type": "number",
+      "description": "CSS score at the time of dispatch",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "match_score": {
+      "type": "number",
+      "description": "Algorithm-computed match quality score",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "confirmed", "active", "completed", "declined", "reassigned"],
+      "default": "pending"
+    },
+    "dispatched_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "confirmed_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "coordinator_rating": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Post-dispatch coordinator rating"
+    },
+    "coordinator_notes": {
+      "type": ["string", "null"],
+      "description": "Optional post-dispatch notes from coordinator"
+    }
+  },
+  "additionalProperties": false
+}

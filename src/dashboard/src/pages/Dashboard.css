@@ -1,0 +1,221 @@
+/* ── Dashboard ───────────────────────────────────────────── */
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-title {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.last-updated {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Metric Summary ────────────────────────────────────── */
+.metric-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.metric-card {
+  background: var(--color-bg-glass);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.metric-value {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.metric-note {
+  font-size: 0.7rem;
+  color: var(--color-stable);
+  margin-top: 2px;
+}
+
+/* ── Heatmap Container ──────────────────────────────────── */
+.heatmap-container {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+
+.heatmap-container .leaflet-container {
+  border-radius: var(--radius-md);
+}
+
+/* ── Legend — functional, compact ──────────────────────── */
+.heatmap-legend {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 900;
+  padding: 10px 14px;
+  background: rgba(10, 14, 26, 0.88);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.legend-label {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 2px;
+}
+
+.legend-items {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ── Ward Popup ─────────────────────────────────────────── */
+.ward-popup h4 {
+  font-size: 0.88rem;
+  margin-bottom: 4px;
+  color: #1e293b;
+}
+
+.popup-score {
+  font-size: 0.82rem;
+  color: #475569;
+  margin-bottom: 4px;
+}
+
+.popup-score strong {
+  color: #0f172a;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+}
+
+.popup-event {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+/* ── Activity Feed ─────────────────────────────────────── */
+.activity-feed {
+  padding: 16px 20px;
+}
+
+.activity-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.activity-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 12px;
+  border-left: 2px solid var(--color-border);
+}
+
+.activity-time {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.activity-text {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+/* ── Empty State ───────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 20px 24px;
+}
+
+.empty-state__text {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Loading / Error ────────────────────────────────────── */
+.map-loading, .map-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 500px;
+  gap: 16px;
+}
+
+.map-error p {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .metric-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
