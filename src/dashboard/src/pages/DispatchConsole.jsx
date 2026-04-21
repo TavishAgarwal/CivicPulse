@@ -79,39 +79,66 @@ export default function DispatchConsole() {
       const LAST_NAMES = ['Sharma', 'Patel', 'Verma', 'Singh', 'Reddy', 'Gupta', 'Kumar', 'Iyer', 'Das', 'Joshi'];
       const SKILL_POOL = ['medical', 'logistics', 'counseling', 'teaching', 'language'];
 
-      const numResults = Math.min(5, Math.floor(seeded(99) * 3) + 3);
-      const demoVols = Array.from({ length: numResults }, (_, i) => {
+      /* Generate a larger pool of volunteers, then score and rank them */
+      const POOL_SIZE = 10;
+      const pool = Array.from({ length: POOL_SIZE }, (_, i) => {
         const nameIdx = Math.floor(seeded(i * 7) * FIRST_NAMES.length);
         const lastIdx = Math.floor(seeded(i * 13 + 3) * LAST_NAMES.length);
         const name = `${FIRST_NAMES[nameIdx]}_${LAST_NAMES[lastIdx]}`;
-        /* Pick 1-3 skills, offset by ward seed so each ward gets different skill combos */
+
+        /* Assign organic skills based on seed — NOT influenced by requiredSkills */
         const numSkills = Math.floor(seeded(i * 5 + 2) * 3) + 1;
         const skillStart = Math.floor(seeded(i * 11 + wardSeed) * SKILL_POOL.length);
         const skills = [];
         for (let s = 0; s < numSkills; s++) {
-          const skill = SKILL_POOL[(skillStart + s) % SKILL_POOL.length];
-          if (requiredSkills.length === 0 || requiredSkills.includes(skill)) skills.push(skill);
-          else skills.push(SKILL_POOL[(skillStart + s + 1) % SKILL_POOL.length]);
+          skills.push(SKILL_POOL[(skillStart + s) % SKILL_POOL.length]);
         }
         const uniqueSkills = [...new Set(skills)];
+
+        /* Base scores for proximity, availability, fatigue */
+        const proximityScore = +(0.6 + seeded(i * 4) * 0.4).toFixed(2);
+        const availabilityScore = +(0.7 + seeded(i * 8) * 0.3).toFixed(2);
+        const fatigueScore = +(seeded(i * 9) * 0.45).toFixed(2);
+        const fatigueComponent = +(1 - fatigueScore).toFixed(2);
+
+        /* Skill match score: if requiredSkills selected, reward overlap */
+        let skillScore;
+        if (requiredSkills.length > 0) {
+          const matchingSkills = uniqueSkills.filter((s) => requiredSkills.includes(s));
+          skillScore = +(matchingSkills.length / requiredSkills.length).toFixed(2);
+        } else {
+          skillScore = +(0.5 + seeded(i * 6) * 0.5).toFixed(2);
+        }
+
+        /* Weighted composite match score */
+        const matchScore = +(
+          proximityScore * 0.25 +
+          skillScore * 0.35 +
+          availabilityScore * 0.20 +
+          fatigueComponent * 0.20
+        ).toFixed(2);
+
+        const distanceKm = +((seeded(i * 3) * 14 + 0.5)).toFixed(1);
 
         return {
           volunteer_id: `vol-${selectedWard}-${i}`,
           display_handle: name,
-          match_score: +(0.97 - i * 0.08 - seeded(i) * 0.05).toFixed(2),
+          match_score: matchScore,
           skills: uniqueSkills,
-          distance_km: +((seeded(i * 3) * 14 + 0.5)).toFixed(1),
-          fatigue_score: +(seeded(i * 9) * 0.45).toFixed(2),
+          distance_km: distanceKm,
+          fatigue_score: fatigueScore,
           score_breakdown: {
-            proximity: +(0.6 + seeded(i * 4) * 0.4).toFixed(2),
-            skill: +(0.5 + seeded(i * 6) * 0.5).toFixed(2),
-            availability: +(0.7 + seeded(i * 8) * 0.3).toFixed(2),
-            fatigue: +(0.6 + seeded(i * 10) * 0.4).toFixed(2),
+            proximity: proximityScore,
+            skill: skillScore,
+            availability: availabilityScore,
+            fatigue: fatigueComponent,
           },
         };
       });
 
-      setSuggestions(demoVols);
+      /* Sort by match_score descending and take top 5 */
+      pool.sort((a, b) => b.match_score - a.match_score);
+      setSuggestions(pool.slice(0, 5));
     } finally {
       setLoading(false);
     }

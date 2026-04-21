@@ -5,19 +5,22 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Map, Rocket, Users, BarChart2, Settings } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 import './Layout.css';
 
 const NAV_ITEMS = [
-  { path: '/dashboard', label: 'Dashboard', Icon: Map },
-  { path: '/dashboard/dispatch', label: 'Dispatch', Icon: Rocket },
-  { path: '/dashboard/volunteers', label: 'Volunteers', Icon: Users },
-  { path: '/dashboard/reports', label: 'Reports', Icon: BarChart2 },
-  { path: '/dashboard/settings', label: 'Settings', Icon: Settings },
+  { path: '/dashboard', label: 'Dashboard', Icon: Map, coordinatorOnly: false },
+  { path: '/dashboard/dispatch', label: 'Dispatch', Icon: Rocket, coordinatorOnly: true },
+  { path: '/dashboard/volunteers', label: 'Volunteers', Icon: Users, coordinatorOnly: false },
+  { path: '/dashboard/reports', label: 'Reports', Icon: BarChart2, coordinatorOnly: false },
+  { path: '/dashboard/settings', label: 'Settings', Icon: Settings, coordinatorOnly: true },
 ];
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, isCoordinator } = useAuth();
   const location = useLocation();
+
+  const visibleNav = NAV_ITEMS.filter((item) => !item.coordinatorOnly || isCoordinator);
 
   return (
     <div className="layout" id="app-layout">
@@ -31,7 +34,7 @@ export default function Layout() {
           </div>
 
           <nav className="header-nav" id="main-nav">
-            {NAV_ITEMS.map((item) => (
+            {visibleNav.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
@@ -48,7 +51,8 @@ export default function Layout() {
           </nav>
 
           <div className="header-user">
-            <span className="user-role">{user?.role || 'coordinator'}</span>
+            <ThemeToggle />
+            <span className="user-role">{isCoordinator ? 'COORDINATOR' : 'VIEWER'}</span>
             <button className="btn btn-secondary btn-sm" onClick={logout} id="logout-btn">
               Logout
             </button>

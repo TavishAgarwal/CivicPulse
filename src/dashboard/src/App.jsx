@@ -22,6 +22,12 @@ function ProtectedRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
+function CoordinatorRoute({ children }) {
+  const { isCoordinator, loading } = useAuth();
+  if (loading) return <div className="page-container"><div className="skeleton" style={{ height: 200 }} /></div>;
+  return isCoordinator ? children : <Navigate to="/dashboard" replace />;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -38,10 +44,10 @@ export default function App() {
         <Route index element={<Dashboard />} />
         <Route path="wards/:wardId" element={<WardDetail />} />
         <Route path="wards/:wardId/history" element={<WardHistory />} />
-        <Route path="dispatch" element={<DispatchConsole />} />
+        <Route path="dispatch" element={<CoordinatorRoute><DispatchConsole /></CoordinatorRoute>} />
         <Route path="volunteers" element={<VolunteerRegistry />} />
         <Route path="reports" element={<Reports />} />
-        <Route path="settings" element={<Settings />} />
+        <Route path="settings" element={<CoordinatorRoute><Settings /></CoordinatorRoute>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

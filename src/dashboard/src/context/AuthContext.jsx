@@ -122,7 +122,8 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
-  const value = { user, token, loading, login, register, demoLogin, logout, isAuthenticated: !!user };
+  const isCoordinator = user?.role === 'coordinator';
+  const value = { user, token, loading, login, register, demoLogin, logout, isAuthenticated: !!user, isCoordinator };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

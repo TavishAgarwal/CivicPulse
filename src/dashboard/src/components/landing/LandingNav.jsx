@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import ThemeToggle from '../ThemeToggle';
 
 const NAV_LINKS = [
   { label: 'How It Works', href: '#how-it-works' },
@@ -50,7 +51,8 @@ export default function LandingNav() {
         </div>
 
         {/* CTA Buttons */}
-        <div className="lp-nav__actions">
+        <div className="lp-nav__actions" style={{ gap: '16px' }}>
+          <ThemeToggle />
           <Link to="/login" className="lp-nav__signin">Sign In</Link>
           <a href="#cta" className="lp-nav__cta" onClick={(e) => handleAnchor(e, '#cta')}>Get Early Access</a>
         </div>

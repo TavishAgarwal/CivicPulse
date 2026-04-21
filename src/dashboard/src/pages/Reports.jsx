@@ -7,7 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import api from '../api/client';
 import './Reports.css';
 
-const PIE_COLORS = ['#22c55e', '#f59e0b', '#f97316', '#ef4444'];
+const PIE_COLORS = ['#1DE9B6', '#eab308', '#f97316', '#ef4444'];
 
 export default function Reports() {
   const [report, setReport] = useState(null);
@@ -63,13 +63,14 @@ export default function Reports() {
           <h3 className="chart-title">Dispatches (Last 14 Days)</h3>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data.dispatches_by_day} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
-              <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(29, 233, 182, 0.1)" />
+              <XAxis dataKey="date" tick={{ fill: '#81e6d9', fontSize: 11, fontFamily: 'monospace' }} tickLine={false} />
+              <YAxis tick={{ fill: '#81e6d9', fontSize: 11, fontFamily: 'monospace' }} tickLine={false} />
               <Tooltip
-                contentStyle={{ background: 'rgba(26,34,54,0.92)', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 8, color: '#f1f5f9', fontSize: 13 }}
+                contentStyle={{ background: '#061611', border: '1px solid #1DE9B6', borderRadius: 2, color: '#1DE9B6', fontFamily: 'monospace', fontSize: 13, boxShadow: '0 0 10px rgba(29, 233, 182, 0.3)' }}
+                itemStyle={{ color: '#1DE9B6' }}
               />
-              <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="count" fill="#1DE9B6" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -79,13 +80,16 @@ export default function Reports() {
           <h3 className="chart-title">Ward Status Distribution</h3>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
-              <Pie data={data.status_distribution} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={90} innerRadius={50} paddingAngle={3}>
+              <Pie data={data.status_distribution} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={90} innerRadius={50} paddingAngle={3} stroke="none">
                 {data.status_distribution.map((entry, index) => (
-                  <Cell key={entry.status} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                  <Cell key={entry.status} fill={PIE_COLORS[index % PIE_COLORS.length]} stroke="#040b09" strokeWidth={2} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ background: 'rgba(26,34,54,0.92)', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 8, color: '#f1f5f9' }} />
-              <Legend formatter={(value) => <span style={{ color: '#94a3b8', fontSize: 12, textTransform: 'capitalize' }}>{value}</span>} />
+              <Tooltip 
+                 contentStyle={{ background: '#061611', border: '1px solid #1DE9B6', borderRadius: 2, color: '#1DE9B6', fontFamily: 'monospace', boxShadow: '0 0 10px rgba(29, 233, 182, 0.3)' }} 
+                 itemStyle={{ color: '#1DE9B6' }}
+              />
+              <Legend formatter={(value) => <span style={{ color: '#81e6d9', fontSize: 12, fontFamily: 'monospace', textTransform: 'capitalize' }}>{value}</span>} />
             </PieChart>
           </ResponsiveContainer>
         </div>

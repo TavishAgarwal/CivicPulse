@@ -231,7 +231,6 @@ export default function Login() {
                 <span className="demo-btn__icon"><Rocket size={18} /></span>
                 <span className="demo-btn__info">
                   <span className="demo-btn__role">Coordinator</span>
-                  <span className="demo-btn__email">coordinator@civicpulse.demo</span>
                 </span>
               </button>
               <button
@@ -243,7 +242,6 @@ export default function Login() {
                 <span className="demo-btn__icon"><Eye size={18} /></span>
                 <span className="demo-btn__info">
                   <span className="demo-btn__role">Read-only Viewer</span>
-                  <span className="demo-btn__email">viewer@civicpulse.demo</span>
                 </span>
               </button>
             </div>

@@ -58,7 +58,8 @@
   font-family: var(--font-heading);
   font-size: 1.6rem;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--color-accent);
+  text-shadow: 0 0 10px var(--color-accent-glow);
   line-height: 1.2;
 }
 
@@ -77,6 +78,15 @@
 
 .heatmap-container .leaflet-container {
   border-radius: var(--radius-md);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+}
+
+.heatmap-container .leaflet-tile-pane {
+  filter: invert(100%) hue-rotate(170deg) saturate(1.5) brightness(0.6) contrast(1.2);
+}
+
+.theme-light .heatmap-container .leaflet-tile-pane {
+  filter: none;
 }
 
 /* ── Legend — functional, compact ──────────────────────── */
@@ -127,24 +137,24 @@
 .ward-popup h4 {
   font-size: 0.88rem;
   margin-bottom: 4px;
-  color: #1e293b;
+  color: var(--color-text-primary);
 }
 
 .popup-score {
   font-size: 0.82rem;
-  color: #475569;
+  color: var(--color-text-secondary);
   margin-bottom: 4px;
 }
 
 .popup-score strong {
-  color: #0f172a;
+  color: var(--color-text-primary);
   font-family: var(--font-heading);
   font-size: 1.05rem;
 }
 
 .popup-event {
   font-size: 0.72rem;
-  color: #64748b;
+  color: var(--color-text-muted);
   font-style: italic;
   margin-top: 4px;
 }
@@ -167,7 +177,7 @@
   flex-direction: column;
   gap: 2px;
   padding-left: 12px;
-  border-left: 2px solid var(--color-border);
+  border-left: 2px solid var(--color-accent);
 }
 
 .activity-time {

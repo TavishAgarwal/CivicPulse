@@ -312,7 +312,7 @@
 
 /* ── STATS BAR ──────────────────────────────────────────── */
 .lp-stats {
-  background: var(--color-accent);
+  background: var(--color-accent-solid);
   padding: 28px 0;
 }
 .lp-stats__inner {
@@ -616,7 +616,7 @@
 
 /* ── CTA ────────────────────────────────────────────────── */
 .lp-cta {
-  background: var(--color-accent);
+  background: var(--color-accent-solid);
   padding: 80px 0;
   text-align: center;
 }
