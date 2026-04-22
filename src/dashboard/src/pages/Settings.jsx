@@ -97,6 +97,15 @@ export default function Settings() {
           <SettingRow label="Map Provider" value="OpenStreetMap (no API key)" />
         </div>
       </div>
+
+      {/* Consent */}
+      <div className="settings-section glass-card" id="consent-section">
+        <h2 className="settings-section-title">Community Consent</h2>
+        <p className="settings-note">Manage ward-level data source opt-outs for privacy compliance.</p>
+        <a href="/dashboard/consent" className="btn btn-secondary" id="consent-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+          Open Consent Dashboard →
+        </a>
+      </div>
     </div>
   );
 }

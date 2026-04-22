@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { Pill, GraduationCap, Zap, Smartphone, ShoppingBasket, Building2, Radio, AlertTriangle, TrendingUp, Rocket, ArrowLeft } from 'lucide-react';
+import SignalDecomposition from '../components/SignalDecomposition';
 import api from '../api/client';
 import './WardDetail.css';
 
@@ -122,6 +123,17 @@ export default function WardDetail() {
             <p className="anomaly-title">Early Warning Pulse Detected</p>
             <p className="anomaly-severity">Severity: {((ward.anomaly.severity || 0) * 100).toFixed(0)}%</p>
           </div>
+        </div>
+      )}
+
+      {/* Signal Contribution Analysis */}
+      {(ward.signals || []).length > 0 && (
+        <div className="glass-card" style={{ padding: '16px 20px' }} id="signal-analysis">
+          <SignalDecomposition
+            wardName={ward.ward_code || ward.name}
+            cssScore={ward.css_score}
+            signals={ward.signals}
+          />
         </div>
       )}
 

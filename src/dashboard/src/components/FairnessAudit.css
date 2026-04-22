@@ -1,0 +1,19 @@
+.fairness-audit { display: flex; flex-direction: column; gap: 16px; }
+.fairness-header { margin-bottom: 4px; }
+.fairness-title { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; color: var(--color-text-primary); }
+.fairness-subtitle { font-size: 0.8rem; color: var(--color-text-muted); margin-top: 2px; }
+
+.fairness-badge { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: var(--radius-md); font-size: 0.85rem; font-weight: 600; }
+.fairness-badge--pass { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); color: var(--color-stable); }
+.fairness-badge--fail { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: var(--color-critical); }
+
+.fairness-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.fairness-stat { background: var(--color-bg-glass); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.fairness-stat-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); }
+.fairness-stat-value { font-family: var(--font-heading); font-size: 1.3rem; font-weight: 700; color: var(--color-accent); }
+
+.fairness-chart { padding: 16px; }
+.fairness-violations { padding: 16px; }
+
+.fairness-footer { font-size: 0.72rem; color: var(--color-text-muted); line-height: 1.5; padding-top: 4px; border-top: 1px solid var(--color-border); }
+.fairness-footer code { background: var(--color-surface); padding: 1px 6px; border-radius: 3px; font-size: 0.7rem; color: var(--color-accent); }

@@ -15,6 +15,7 @@ import DispatchConsole from './pages/DispatchConsole';
 import VolunteerRegistry from './pages/VolunteerRegistry';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import ConsentDashboard from './pages/ConsentDashboard';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="volunteers" element={<VolunteerRegistry />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<CoordinatorRoute><Settings /></CoordinatorRoute>} />
+        <Route path="consent" element={<ConsentDashboard />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,0 +1,20 @@
+.signal-decomp { display: flex; flex-direction: column; gap: 12px; }
+.decomp-title { font-family: var(--font-heading); font-size: 1rem; font-weight: 700; }
+.decomp-subtitle { font-size: 0.8rem; color: var(--color-text-muted); }
+
+.decomp-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 768px) { .decomp-layout { grid-template-columns: 1fr; } }
+
+.decomp-chart { min-height: 300px; }
+
+.decomp-drivers { display: flex; flex-direction: column; gap: 10px; }
+.drivers-title { font-size: 0.82rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 4px; }
+
+.drivers-list { display: flex; flex-direction: column; gap: 8px; }
+.driver-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--color-bg-glass); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.driver-emoji { font-size: 1rem; flex-shrink: 0; }
+.driver-info { flex: 1; display: flex; flex-direction: column; }
+.driver-name { font-size: 0.82rem; font-weight: 600; color: var(--color-text-primary); text-transform: capitalize; }
+.driver-change { font-size: 0.72rem; }
+
+.drivers-note { font-size: 0.68rem; color: var(--color-text-muted); margin-top: 6px; line-height: 1.4; }

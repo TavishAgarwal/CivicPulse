@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip, useMap } from 'react-leaflet';
 import { RefreshCw, AlertTriangle, Activity, Clock } from 'lucide-react';
+import HeatmapTimeScrubber from '../components/HeatmapTimeScrubber';
 import api from '../api/client';
 import './Dashboard.css';
 
@@ -112,6 +113,8 @@ function ActivityFeed() {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [wards, setWards] = useState([]);
+  const [displayWards, setDisplayWards] = useState([]);
+  const [scrubberLabel, setScrubberLabel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -121,9 +124,13 @@ export default function Dashboard() {
     setError(null);
     try {
       const res = await api.get('/heatmap', { params: { city: 'delhi' } });
-      setWards(res.data?.data?.wards || []);
+      const w = res.data?.data?.wards || [];
+      setWards(w);
+      setDisplayWards(w);
     } catch {
-      setWards(generateDemoWards());
+      const w = generateDemoWards();
+      setWards(w);
+      setDisplayWards(w);
     } finally {
       setLoading(false);
       setLastUpdated(new Date());
@@ -136,8 +143,16 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [fetchHeatmap]);
 
-  const center = wards.length > 0
-    ? [wards[0].lat || 28.6139, wards[0].lng || 77.2090]
+  /* Time-scrubber callback — updates displayed wards */
+  const handleScrubberChange = useCallback((wardsForDay, dateLabel) => {
+    setDisplayWards(wardsForDay);
+    setScrubberLabel(dateLabel);
+  }, []);
+
+  const activeWards = displayWards.length > 0 ? displayWards : wards;
+
+  const center = activeWards.length > 0
+    ? [activeWards[0].lat || 28.6139, activeWards[0].lng || 77.2090]
     : [28.6139, 77.2090];
 
   const timeAgo = lastUpdated
@@ -150,7 +165,7 @@ export default function Dashboard() {
         <div>
           <h1 className="page-title">Ward Stress Heatmap</h1>
           <p className="page-subtitle">
-            {wards.length} wards in Delhi
+            {activeWards.length} wards in Delhi
             {lastUpdated && <span className="last-updated"> · {timeAgo}</span>}
           </p>
         </div>
@@ -159,7 +174,7 @@ export default function Dashboard() {
         </button>
       </div>
 
-      <MetricSummary wards={wards} />
+      <MetricSummary wards={activeWards} />
 
       <div className="heatmap-container glass-card" id="heatmap-container">
         {loading ? (
@@ -182,9 +197,9 @@ export default function Dashboard() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <MapBounds wards={wards} />
+            <MapBounds wards={activeWards} />
 
-            {wards.map((ward) => {
+            {activeWards.map((ward) => {
               const score = ward.css_score || 0;
               const label = getCSSLabel(score);
               const color = getCSSColor(score);
@@ -235,10 +250,15 @@ export default function Dashboard() {
         <HeatmapLegend />
       </div>
 
+      {/* Time Scrubber */}
+      {wards.length > 0 && (
+        <HeatmapTimeScrubber baseWards={wards} onDayChange={handleScrubberChange} />
+      )}
+
       {/* Empty state for no critical wards */}
-      {wards.length > 0 && wards.filter((w) => w.css_score >= 76).length === 0 && (
+      {activeWards.length > 0 && activeWards.filter((w) => w.css_score >= 76).length === 0 && (
         <div className="empty-state glass-card" id="no-critical">
-          <p className="empty-state__text">No critical-stress wards detected. All 30 wards below CSS 76.</p>
+          <p className="empty-state__text">No critical-stress wards detected. All {activeWards.length} wards below CSS 76.</p>
         </div>
       )}
 

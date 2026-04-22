@@ -1,0 +1,184 @@
+/* ── Heatmap Time Scrubber ─────────────────────────────── */
+.time-scrubber {
+  background: var(--color-bg-glass);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 18px 10px;
+  margin-top: -4px;
+}
+
+.scrubber-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.scrubber-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+}
+
+.scrubber-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.scrubber-date {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.scrubber-date strong {
+  color: var(--color-accent-light);
+  font-family: var(--font-heading);
+}
+
+.live-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: var(--color-stable);
+  border-radius: var(--radius-full);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── Controls Row ─────────────────────────────────────── */
+.scrubber-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.scrubber-buttons {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.scrubber-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.scrubber-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-light);
+  background: var(--color-accent-bg);
+}
+
+.scrubber-btn--play {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* ── Slider ───────────────────────────────────────────── */
+.scrubber-slider-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slider-bound {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  font-family: var(--font-heading);
+}
+
+.scrubber-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.scrubber-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 0 8px var(--color-accent-glow);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.scrubber-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+}
+
+.scrubber-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 0 8px var(--color-accent-glow);
+  cursor: pointer;
+}
+
+.scrubber-day-counter {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-heading);
+  white-space: nowrap;
+  min-width: 60px;
+  text-align: right;
+}
+
+/* ── Progress Bar ─────────────────────────────────────── */
+.scrubber-progress {
+  height: 2px;
+  background: var(--color-border);
+  border-radius: 1px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.scrubber-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-light));
+  border-radius: 1px;
+  transition: width 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .scrubber-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .scrubber-controls {
+    flex-wrap: wrap;
+  }
+}

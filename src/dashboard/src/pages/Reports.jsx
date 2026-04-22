@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import FairnessAudit from '../components/FairnessAudit';
 import api from '../api/client';
 import './Reports.css';
 
@@ -12,6 +13,7 @@ const PIE_COLORS = ['#1DE9B6', '#eab308', '#f97316', '#ef4444'];
 export default function Reports() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('impact');
 
   useEffect(() => {
     async function fetchReport() {
@@ -35,6 +37,25 @@ export default function Reports() {
     <div className="reports-page page-container fade-in" id="reports-page">
       <h1 className="page-title">Impact Reports</h1>
       <p className="page-subtitle">Aggregated dispatch and community health metrics</p>
+
+      {/* Tab Buttons */}
+      <div className="report-tabs" id="report-tabs">
+        <button
+          className={`report-tab ${activeTab === 'impact' ? 'report-tab--active' : ''}`}
+          onClick={() => setActiveTab('impact')}
+          id="tab-impact"
+        >Impact</button>
+        <button
+          className={`report-tab ${activeTab === 'fairness' ? 'report-tab--active' : ''}`}
+          onClick={() => setActiveTab('fairness')}
+          id="tab-fairness"
+        >Fairness</button>
+      </div>
+
+      {activeTab === 'fairness' ? (
+        <FairnessAudit />
+      ) : (
+      <>
 
       {/* KPIs */}
       <div className="kpi-grid" id="kpi-grid">
@@ -94,6 +115,8 @@ export default function Reports() {
           </ResponsiveContainer>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

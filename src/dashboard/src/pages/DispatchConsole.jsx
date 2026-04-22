@@ -3,7 +3,8 @@
  * Select ward → get volunteer suggestions → confirm/reject dispatch.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Loader2, Check, MapPin } from 'lucide-react';
+import { Search, Loader2, Check, MapPin, MessageCircle } from 'lucide-react';
+import WhatsAppPreview from '../components/WhatsAppPreview';
 import api from '../api/client';
 import './DispatchConsole.css';
 
@@ -16,6 +17,7 @@ export default function DispatchConsole() {
   const [loading, setLoading] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(null);
   const [message, setMessage] = useState(null);
+  const [showWhatsApp, setShowWhatsApp] = useState(false);
 
   const SKILLS = ['medical', 'logistics', 'counseling', 'teaching', 'language'];
 
@@ -279,6 +281,16 @@ export default function DispatchConsole() {
               </div>
             ))}
           </div>
+          {selectedWardData && (
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowWhatsApp(true)}
+              style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+              id="preview-whatsapp-btn"
+            >
+              <MessageCircle size={16} /> Preview Notification
+            </button>
+          )}
         </div>
       )}
 
@@ -308,6 +320,15 @@ export default function DispatchConsole() {
           </table>
         </div>
       )}
+
+      {/* WhatsApp Preview Drawer */}
+      <WhatsAppPreview
+        open={showWhatsApp}
+        onClose={() => setShowWhatsApp(false)}
+        wardName={selectedWardData?.ward_code || selectedWardData?.name || 'WARD-DEL-001'}
+        cssScore={selectedWardData?.css_score || 72}
+        volunteerName={suggestions[0]?.display_handle || 'Volunteer'}
+      />
     </div>
   );
 }

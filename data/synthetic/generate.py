@@ -217,6 +217,91 @@ def generate_sql_inserts(wards: list[dict], volunteers: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def compute_ground_truth_css(
+    signals: list[dict], wards: list[dict], rng: random.Random
+) -> dict[str, list[dict]]:
+    """
+    Derive ground-truth CSS labels from synthetic signals using
+    the documented weighted formula. Each ward-day window gets a
+    computed CSS based on signal intensities.
+
+    CSS = (
+      pharmacy * 0.20 + foodbank * 0.20 + school * 0.15 +
+      utility * 0.15 + social * 0.15 + health * 0.15
+    ) * ward_baseline_multiplier * 100 + noise(±5)
+
+    Returns: {ward_code: [{date, css, signals_used, ...}]}
+    """
+    from collections import defaultdict
+    from datetime import datetime as dt
+
+    SIGNAL_WEIGHTS = {
+        "pharmacy": 0.20,
+        "foodbank": 0.20,
+        "school": 0.15,
+        "utility": 0.15,
+        "social": 0.15,
+        "health": 0.15,
+    }
+
+    # Assign each ward a baseline multiplier (0.8–1.2) deterministically
+    ward_multipliers = {}
+    for ward in wards:
+        ward_multipliers[ward["ward_code"]] = 0.8 + rng.random() * 0.4
+
+    # Group signals by ward+date
+    buckets = defaultdict(lambda: defaultdict(list))
+    for sig in signals:
+        date_str = sig["timestamp"][:10]  # YYYY-MM-DD
+        buckets[sig["location_pin"]][date_str].append(sig)
+
+    results = {}
+    flat_labels = []
+
+    for ward_code, day_map in buckets.items():
+        ward_labels = []
+        multiplier = ward_multipliers.get(ward_code, 1.0)
+
+        for date_str in sorted(day_map.keys()):
+            day_signals = day_map[date_str]
+
+            # Average intensity per signal type for this day
+            type_intensities = defaultdict(list)
+            for sig in day_signals:
+                type_intensities[sig["signal_type"]].append(sig["intensity_score"])
+
+            type_avgs = {
+                stype: sum(vals) / len(vals)
+                for stype, vals in type_intensities.items()
+            }
+
+            # Weighted CSS computation
+            weighted_sum = sum(
+                type_avgs.get(stype, 0.0) * weight
+                for stype, weight in SIGNAL_WEIGHTS.items()
+            )
+
+            noise = rng.uniform(-5, 5)
+            css_raw = weighted_sum * multiplier * 100 + noise
+            css = max(0.0, min(100.0, round(css_raw, 2)))
+
+            label = {
+                "ward_code": ward_code,
+                "date": date_str,
+                "css": css,
+                "signal_types_present": list(type_avgs.keys()),
+                "signals_count": len(day_signals),
+                "type_averages": {k: round(v, 4) for k, v in type_avgs.items()},
+                "multiplier": round(multiplier, 3),
+            }
+            ward_labels.append(label)
+            flat_labels.append(label)
+
+        results[ward_code] = ward_labels
+
+    return flat_labels
+
+
 def main():
     parser = argparse.ArgumentParser(description="CivicPulse Synthetic Data Generator")
     parser.add_argument("--city", type=str, default="delhi", help="City name")
@@ -247,6 +332,11 @@ def main():
     print(f"👥 Generating {args.volunteers} volunteer profiles...")
     volunteers = generate_volunteers(wards, args.volunteers, rng)
 
+    # Compute ground-truth CSS labels
+    print("🧠 Computing ground-truth CSS labels...")
+    css_labels = compute_ground_truth_css(signals, wards, random.Random(args.seed + 1))
+    print(f"   → {len(css_labels)} ward-day CSS labels computed")
+
     # Write outputs
     signals_path = os.path.join(output_dir, "signals_sample.json")
     with open(signals_path, "w") as f:
@@ -257,6 +347,12 @@ def main():
     with open(volunteers_path, "w") as f:
         json.dump(volunteers, f, indent=2, default=str)
     print(f"✅ Volunteers → {volunteers_path}")
+
+    # Save ground-truth labels
+    labels_path = os.path.join(output_dir, "css_labels.json")
+    with open(labels_path, "w") as f:
+        json.dump(css_labels, f, indent=2, default=str)
+    print(f"✅ CSS Labels → {labels_path}")
 
     # Generate SQL seed file
     sql_path = os.path.join(output_dir, "seed.sql")
@@ -271,8 +367,10 @@ def main():
     print(f"   Wards: {len(wards)}")
     print(f"   Signals: {len(signals)} ({args.days} days)")
     print(f"   Volunteers: {len(volunteers)}")
+    print(f"   CSS Labels: {len(css_labels)}")
     print(f"   Seed: {args.seed}")
 
 
 if __name__ == "__main__":
     main()
+

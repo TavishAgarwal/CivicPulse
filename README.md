@@ -92,7 +92,34 @@ To run CivicPulse locally, you will need the following installed:
 - [Git](https://git-scm.com/)
 - (Optional) Python 3.10+ and Node.js v18+ if you intend to run the services outside of Docker for debugging (see [MANUAL_SETUP.md](./MANUAL_SETUP.md)).
 
-### Installation
+### 🚀 Quick Demo (Recommended)
+
+The fastest way to see CivicPulse in action — one command:
+
+```bash
+git clone https://github.com/TavishAgarwal/CivicPulse.git
+cd CivicPulse && bash scripts/demo.sh
+```
+
+This auto-detects your environment (Docker, Node.js, Python), generates synthetic data, and opens the dashboard at http://localhost:3000.
+
+**Demo-only mode** (no Docker needed — just Node.js):
+```bash
+bash scripts/demo.sh --demo-only
+```
+Demo credentials: `coordinator@civicpulse.demo` / `demo123`
+
+### 🚀 Quick Start (Lightweight — No Kafka Required)
+
+For judges and reviewers who want a working backend without the full Kafka stack:
+
+```bash
+docker-compose -f docker-compose.lite.yml up --build
+```
+
+This runs only 4 services (Postgres, Redis, API, Dashboard) — no Kafka or Zookeeper overhead.
+
+### Installation (Full Stack)
 
 1. Clone the repository:
    ```bash
@@ -105,9 +132,9 @@ To run CivicPulse locally, you will need the following installed:
    python data/synthetic/generate.py
    ```
 
-### Running with Docker
+### Running with Docker (Full Stack)
 
-The fastest way to spin up the entire ecosystem is via Docker Compose, which builds the necessary images and provisions the database.
+The full ecosystem with Kafka, Zookeeper, and all microservices:
 
 ```bash
 docker-compose up --build
