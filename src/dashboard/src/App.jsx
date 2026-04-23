@@ -5,6 +5,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
+import ErrorBoundary from './components/ErrorBoundary';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import LegalStub from './pages/LegalStub';
@@ -41,7 +42,7 @@ export default function App() {
       <Route path="/dpdpa" element={<LegalStub />} />
 
       {/* Protected app routes */}
-      <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+      <Route path="/dashboard" element={<ProtectedRoute><ErrorBoundary><Layout /></ErrorBoundary></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="wards/:wardId" element={<WardDetail />} />
         <Route path="wards/:wardId/history" element={<WardHistory />} />

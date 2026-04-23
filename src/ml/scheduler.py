@@ -67,7 +67,7 @@ def fetch_wards(conn) -> list[dict]:
     """Fetch all active wards from database."""
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, city_id, ward_code, name, lat, lng FROM wards")
+            cur.execute("SELECT id, city_id, ward_code, ward_label, lat, lng FROM wards")
             columns = [desc[0] for desc in cur.description]
             return [dict(zip(columns, row)) for row in cur.fetchall()]
     except psycopg2.Error as e:

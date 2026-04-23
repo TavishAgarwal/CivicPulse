@@ -1,20 +1,22 @@
 /**
  * CivicPulse — Fairness Audit Panel
  * Visualizes per-ward false positive rate disparity.
+ * Fetches data from /api/v1/reports/fairness with demo fallback.
  * Powered by evaluation.py check_fairness() — runs after every model retrain.
  */
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ReferenceLine, Cell,
 } from 'recharts';
-import { ShieldCheck, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, Database, Monitor } from 'lucide-react';
+import api from '../api/client';
 import './FairnessAudit.css';
 
 const FAIRNESS_THRESHOLD = 15; // matches evaluation.py max_disparity=0.15
 
-/* Demo data — 15 wards with per-ward FP rates */
-const WARD_FP_DATA = [
+/* Static fallback data — used when API is unreachable */
+const FALLBACK_FP_DATA = [
   { ward: 'Ward 1', fp_rate: 8 },
   { ward: 'Ward 2', fp_rate: 11 },
   { ward: 'Ward 3', fp_rate: 6 },
@@ -33,14 +35,51 @@ const WARD_FP_DATA = [
 ];
 
 export default function FairnessAudit() {
-  const { compliant, violations, avgRate } = useMemo(() => {
-    const passing = WARD_FP_DATA.filter((w) => w.fp_rate <= FAIRNESS_THRESHOLD);
-    const failing = WARD_FP_DATA.filter((w) => w.fp_rate > FAIRNESS_THRESHOLD);
-    const avg = (WARD_FP_DATA.reduce((s, w) => s + w.fp_rate, 0) / WARD_FP_DATA.length).toFixed(1);
-    return { compliant: passing.length, violations: failing, avgRate: avg };
+  const [wardData, setWardData] = useState(null);
+  const [dataSource, setDataSource] = useState('loading'); // 'live' | 'demo' | 'loading'
+  const [loading, setLoading] = useState(true);
+
+  /* Fetch from backend, fallback to static demo data */
+  useEffect(() => {
+    async function fetchFairness() {
+      try {
+        const res = await api.get('/reports/fairness');
+        const payload = res.data?.data;
+        if (payload?.ward_fp_data?.length > 0) {
+          setWardData(payload.ward_fp_data);
+          setDataSource(payload.source || 'live');
+        } else {
+          setWardData(FALLBACK_FP_DATA);
+          setDataSource('demo');
+        }
+      } catch {
+        setWardData(FALLBACK_FP_DATA);
+        setDataSource('demo');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchFairness();
   }, []);
 
+  const data = wardData || FALLBACK_FP_DATA;
+
+  const { compliant, violations, avgRate } = useMemo(() => {
+    const passing = data.filter((w) => w.fp_rate <= FAIRNESS_THRESHOLD);
+    const failing = data.filter((w) => w.fp_rate > FAIRNESS_THRESHOLD);
+    const avg = (data.reduce((s, w) => s + w.fp_rate, 0) / data.length).toFixed(1);
+    return { compliant: passing.length, violations: failing, avgRate: avg };
+  }, [data]);
+
   const passed = violations.length === 0;
+
+  if (loading) {
+    return (
+      <div className="fairness-audit" id="fairness-audit">
+        <div className="skeleton" style={{ height: 500, borderRadius: 8 }} />
+      </div>
+    );
+  }
 
   return (
     <div className="fairness-audit" id="fairness-audit">
@@ -58,7 +97,7 @@ export default function FairnessAudit() {
         {passed ? (
           <>
             <ShieldCheck size={20} />
-            <span>✅ {compliant}/{WARD_FP_DATA.length} wards within fairness threshold ({FAIRNESS_THRESHOLD}% max FP rate)</span>
+            <span>✅ {compliant}/{data.length} wards within fairness threshold ({FAIRNESS_THRESHOLD}% max FP rate)</span>
           </>
         ) : (
           <>
@@ -80,7 +119,7 @@ export default function FairnessAudit() {
         </div>
         <div className="fairness-stat">
           <span className="fairness-stat-label">Wards Checked</span>
-          <span className="fairness-stat-value">{WARD_FP_DATA.length}</span>
+          <span className="fairness-stat-value">{data.length}</span>
         </div>
         <div className="fairness-stat">
           <span className="fairness-stat-label">Violations</span>
@@ -94,7 +133,7 @@ export default function FairnessAudit() {
       <div className="fairness-chart glass-card" id="fairness-chart">
         <h3 className="chart-title">False Positive Rate by Ward (%)</h3>
         <ResponsiveContainer width="100%" height={380}>
-          <BarChart data={WARD_FP_DATA} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+          <BarChart data={data} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(29, 233, 182, 0.08)" horizontal={false} />
             <XAxis
               type="number"
@@ -138,7 +177,7 @@ export default function FairnessAudit() {
               }}
             />
             <Bar dataKey="fp_rate" radius={[0, 3, 3, 0]} maxBarSize={20}>
-              {WARD_FP_DATA.map((entry, i) => (
+              {data.map((entry, i) => (
                 <Cell
                   key={i}
                   fill={entry.fp_rate > FAIRNESS_THRESHOLD ? '#ef4444' : '#1DE9B6'}
@@ -177,10 +216,17 @@ export default function FairnessAudit() {
         </div>
       )}
 
-      {/* Footer note */}
+      {/* Footer note with data source indicator */}
       <p className="fairness-footer">
         Powered by <code>evaluation.py check_fairness()</code> — runs automatically after every model retrain.
         Threshold: no ward may exceed {FAIRNESS_THRESHOLD}% FP rate disparity above city average.
+      </p>
+      <p className="fairness-footer" style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.7rem' }}>
+        {dataSource === 'live' ? (
+          <><Database size={11} /> Source: <strong>Live Analysis</strong></>
+        ) : (
+          <><Monitor size={11} /> Source: <strong>Demo Data</strong> — connect backend for live results</>
+        )}
       </p>
     </div>
   );

@@ -109,6 +109,7 @@ from routes.signals import router as signals_router
 from routes.volunteers import router as volunteers_router
 from routes.dispatch import router as dispatch_router
 from routes.reports import router as reports_router
+from routes.fairness import router as fairness_router
 
 app.include_router(health_router)
 app.include_router(auth_router)
@@ -118,6 +119,7 @@ app.include_router(signals_router)
 app.include_router(volunteers_router)
 app.include_router(dispatch_router)
 app.include_router(reports_router)
+app.include_router(fairness_router)
 
 
 @app.get("/", include_in_schema=False)

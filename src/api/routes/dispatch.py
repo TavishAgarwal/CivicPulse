@@ -193,13 +193,11 @@ async def confirm_dispatch(
 
     # Notify the volunteer via cascading fallback (WhatsApp → SMS → Manual Log)
     try:
-        import sys as _sys, os as _os
-        _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), "..", "..", "dispatch"))
-        from notifier import notify_volunteer
+        from services.notifier import notify_volunteer_async
         ward_result = await db.execute(select(Ward).where(Ward.id == dispatch.ward_id))
         ward_for_notify = ward_result.scalar_one_or_none()
-        ward_name_for_notify = ward_for_notify.name if ward_for_notify else "Unknown Ward"
-        await notify_volunteer(
+        ward_name_for_notify = ward_for_notify.ward_label if ward_for_notify else "Unknown Ward"
+        await notify_volunteer_async(
             volunteer_id=str(volunteer.id),
             ward_name=ward_name_for_notify,
             css_score=dispatch.css_at_dispatch or 0.0,

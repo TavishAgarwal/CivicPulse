@@ -122,16 +122,29 @@ export default function Reports() {
 }
 
 function generateDemoReport() {
+  /* Seeded PRNG — stable for the entire day, changes daily */
+  const dateSeed = new Date().toISOString().slice(0, 10);
+  let s = [...dateSeed].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const rand = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+
+  const dailyData = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - (13 - i));
+    return {
+      date: d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
+      count: Math.floor(rand() * 15 + 3),
+    };
+  });
+
+  const totalDispatches = dailyData.reduce((sum, d) => sum + d.count, 0);
+  const thisWeek = dailyData.slice(-7).reduce((sum, d) => sum + d.count, 0);
+
   return {
-    total_dispatches: 147,
-    dispatches_this_week: 23,
-    avg_response_minutes: 18,
-    active_volunteers: 164,
+    total_dispatches: totalDispatches,
+    dispatches_this_week: thisWeek,
+    avg_response_minutes: Math.floor(rand() * 12 + 12),
+    active_volunteers: Math.floor(rand() * 80 + 120),
     wards_monitored: 50,
-    dispatches_by_day: Array.from({ length: 14 }, (_, i) => {
-      const d = new Date(); d.setDate(d.getDate() - (13 - i));
-      return { date: d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }), count: Math.floor(Math.random() * 15 + 3) };
-    }),
+    dispatches_by_day: dailyData,
     status_distribution: [
       { status: 'stable', count: 22 },
       { status: 'elevated', count: 15 },

@@ -86,21 +86,41 @@ function HeatmapLegend() {
 
 /* ── Recent Activity Feed ──────────────────────────────── */
 function ActivityFeed() {
-  const feed = [
-    { time: '2 min ago', text: 'Ward 7B — CSS rose from 52 to 63. Pharmacy stock-outs detected.' },
-    { time: '8 min ago', text: 'Ward 12A — Volunteer Priya_P dispatched. ETA 14 min.' },
-    { time: '18 min ago', text: 'Ward 3C — Anomaly cleared. CSS dropped from 71 to 44.' },
-    { time: '32 min ago', text: 'Ward 9D — School attendance down 18%. CSS now 57.' },
-  ];
+  const [now, setNow] = useState(Date.now());
+
+  /* Tick every 30s to update relative times */
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  /* Events with timestamps anchored to mount time (generated once) */
+  const [events] = useState(() => {
+    const base = Date.now();
+    return [
+      { ts: base - 2 * 60 * 1000, text: 'Ward 7B — CSS rose from 52 to 63. Pharmacy stock-outs detected.' },
+      { ts: base - 8 * 60 * 1000, text: 'Ward 12A — Volunteer Priya_P dispatched. ETA 14 min.' },
+      { ts: base - 18 * 60 * 1000, text: 'Ward 3C — Anomaly cleared. CSS dropped from 71 to 44.' },
+      { ts: base - 32 * 60 * 1000, text: 'Ward 9D — School attendance down 18%. CSS now 57.' },
+    ];
+  });
+
+  const relativeTime = (ts) => {
+    const diffMin = Math.floor((now - ts) / 60000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin} min ago`;
+    return `${Math.floor(diffMin / 60)}h ${diffMin % 60}m ago`;
+  };
+
   return (
     <div className="activity-feed glass-card" id="activity-feed">
       <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <Activity size={16} /> Recent Activity
       </h3>
       <ul className="activity-list">
-        {feed.map((item, i) => (
+        {events.map((item, i) => (
           <li key={i} className="activity-item">
-            <span className="activity-time"><Clock size={11} /> {item.time}</span>
+            <span className="activity-time"><Clock size={11} /> {relativeTime(item.ts)}</span>
             <span className="activity-text">{item.text}</span>
           </li>
         ))}
