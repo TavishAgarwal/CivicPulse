@@ -1,15 +1,17 @@
 /**
- * CivicPulse — Dashboard / Heatmap
- * Clustered ward markers with hover interactions, live indicators,
- * and empty states. Uses OpenStreetMap tiles — no API key required.
+ * CivicPulse — Dashboard / Heatmap (Google Maps)
+ * Real-time Firestore ward data rendered on Google Maps with CSS-score coloring.
+ * Falls back to demo data when Firestore is empty or unavailable.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip, useMap } from 'react-leaflet';
-import { RefreshCw, AlertTriangle, Activity, Clock } from 'lucide-react';
+import { GoogleMap, useJsApiLoader, Circle, InfoWindow } from '@react-google-maps/api';
+import { RefreshCw, Activity, Clock, Wifi } from 'lucide-react';
+import { subscribeToCityWards, getAllWards } from '../firebase/firestore';
 import HeatmapTimeScrubber from '../components/HeatmapTimeScrubber';
-import api from '../api/client';
 import './Dashboard.css';
+
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 /* ── CSS Score → Color mapping ──────────────────────────── */
 function getCSSColor(score) {
@@ -26,24 +28,31 @@ function getCSSLabel(score) {
   return 'stable';
 }
 
-/* ── Map auto-fit ───────────────────────────────────────── */
-function MapBounds({ wards }) {
-  const map = useMap();
-  useEffect(() => {
-    if (wards.length > 0) {
-      const bounds = wards.map((w) => [w.lat, w.lng]);
-      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
-    }
-  }, [wards, map]);
-  return null;
-}
+/* ── Dark-mode styled Google Map ───────────────────────── */
+const darkMapStyles = [
+  { elementType: 'geometry', stylers: [{ color: '#0a1f1a' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0a1f1a' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#4db6ac' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#0d2a22' }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#3d8b7a' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#061611' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+];
+
+const mapContainerStyle = { width: '100%', height: '500px', borderRadius: '8px' };
+const defaultCenter = { lat: 28.6139, lng: 77.2090 }; /* Delhi */
 
 /* ── Metric cards ───────────────────────────────────────── */
 function MetricSummary({ wards }) {
-  const critical = wards.filter((w) => (w.css_score || 0) >= 76).length;
-  const high = wards.filter((w) => (w.css_score || 0) >= 56 && w.css_score < 76).length;
-  const avg = wards.length > 0
-    ? (wards.reduce((s, w) => s + (w.css_score || 0), 0) / wards.length).toFixed(1)
+  const critical = wards.filter((w) => (w.currentCSS || w.css_score || 0) >= 76).length;
+  const high = wards.filter((w) => {
+    const s = w.currentCSS || w.css_score || 0;
+    return s >= 56 && s < 76;
+  }).length;
+  const scores = wards.map(w => w.currentCSS || w.css_score || 0);
+  const avg = scores.length > 0
+    ? (scores.reduce((s, v) => s + v, 0) / scores.length).toFixed(1)
     : '—';
 
   return (
@@ -84,26 +93,34 @@ function HeatmapLegend() {
   );
 }
 
-/* ── Recent Activity Feed ──────────────────────────────── */
-function ActivityFeed() {
+/* ── Real-time Activity Feed ──────────────────────────── */
+function ActivityFeed({ wards }) {
   const [now, setNow] = useState(Date.now());
 
-  /* Tick every 30s to update relative times */
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(timer);
   }, []);
 
-  /* Events with timestamps anchored to mount time (generated once) */
-  const [events] = useState(() => {
+  /* Generate events from actual ward data */
+  const events = useMemo(() => {
     const base = Date.now();
-    return [
+    const criticalWards = wards.filter(w => (w.currentCSS || w.css_score || 0) >= 56);
+    const defaultEvents = [
       { ts: base - 2 * 60 * 1000, text: 'Ward 7B — CSS rose from 52 to 63. Pharmacy stock-outs detected.' },
-      { ts: base - 8 * 60 * 1000, text: 'Ward 12A — Volunteer Priya_P dispatched. ETA 14 min.' },
+      { ts: base - 8 * 60 * 1000, text: 'Ward 12A — Volunteer dispatched. ETA 14 min.' },
       { ts: base - 18 * 60 * 1000, text: 'Ward 3C — Anomaly cleared. CSS dropped from 71 to 44.' },
       { ts: base - 32 * 60 * 1000, text: 'Ward 9D — School attendance down 18%. CSS now 57.' },
     ];
-  });
+
+    if (criticalWards.length > 0) {
+      return criticalWards.slice(0, 4).map((w, i) => ({
+        ts: base - (i * 7 + 2) * 60 * 1000,
+        text: `${w.name || w.code || 'Ward'} — CSS at ${(w.currentCSS || w.css_score || 0).toFixed(0)}. ${w.cssStatus === 'critical' ? 'Auto-dispatch eligible.' : 'Monitoring.'}`,
+      }));
+    }
+    return defaultEvents;
+  }, [wards]);
 
   const relativeTime = (ts) => {
     const diffMin = Math.floor((now - ts) / 60000);
@@ -136,34 +153,85 @@ export default function Dashboard() {
   const [displayWards, setDisplayWards] = useState([]);
   const [scrubberLabel, setScrubberLabel] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [isLive, setIsLive] = useState(false);
+  const [selectedWard, setSelectedWard] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
+  /* Load Google Maps */
+  const { isLoaded: mapsLoaded } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY || '',
+  });
+
+  /* Subscribe to Firestore real-time updates */
+  useEffect(() => {
+    let unsubscribe;
+    setLoading(true);
+
+    try {
+      unsubscribe = subscribeToCityWards('delhi', (firestoreWards) => {
+        if (firestoreWards.length > 0) {
+          /* Normalize Firestore data */
+          const normalized = firestoreWards.map(w => ({
+            ...w,
+            ward_id: w.id,
+            css_score: w.currentCSS || w.css_score || 0,
+            ward_code: w.code || w.name,
+          }));
+          setWards(normalized);
+          setDisplayWards(normalized);
+          setIsLive(true);
+        } else {
+          /* No Firestore data — use demo wards */
+          const demo = generateDemoWards();
+          setWards(demo);
+          setDisplayWards(demo);
+          setIsLive(false);
+        }
+        setLoading(false);
+        setLastUpdated(new Date());
+      });
+    } catch {
+      const demo = generateDemoWards();
+      setWards(demo);
+      setDisplayWards(demo);
+      setLoading(false);
+      setLastUpdated(new Date());
+    }
+
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
+  /* Manual refresh */
   const fetchHeatmap = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
-      const res = await api.get('/heatmap', { params: { city: 'delhi' } });
-      const w = res.data?.data?.wards || [];
-      setWards(w);
-      setDisplayWards(w);
+      const firestoreWards = await getAllWards('delhi');
+      if (firestoreWards.length > 0) {
+        const normalized = firestoreWards.map(w => ({
+          ...w,
+          ward_id: w.id,
+          css_score: w.currentCSS || w.css_score || 0,
+          ward_code: w.code || w.name,
+        }));
+        setWards(normalized);
+        setDisplayWards(normalized);
+        setIsLive(true);
+      } else {
+        const demo = generateDemoWards();
+        setWards(demo);
+        setDisplayWards(demo);
+      }
     } catch {
-      const w = generateDemoWards();
-      setWards(w);
-      setDisplayWards(w);
+      const demo = generateDemoWards();
+      setWards(demo);
+      setDisplayWards(demo);
     } finally {
       setLoading(false);
       setLastUpdated(new Date());
     }
   }, []);
 
-  useEffect(() => {
-    fetchHeatmap();
-    const id = setInterval(fetchHeatmap, 60000);
-    return () => clearInterval(id);
-  }, [fetchHeatmap]);
-
-  /* Time-scrubber callback — updates displayed wards */
+  /* Time-scrubber callback */
   const handleScrubberChange = useCallback((wardsForDay, dateLabel) => {
     setDisplayWards(wardsForDay);
     setScrubberLabel(dateLabel);
@@ -171,13 +239,32 @@ export default function Dashboard() {
 
   const activeWards = displayWards.length > 0 ? displayWards : wards;
 
-  const center = activeWards.length > 0
-    ? [activeWards[0].lat || 28.6139, activeWards[0].lng || 77.2090]
-    : [28.6139, 77.2090];
+  const center = useMemo(() => {
+    if (activeWards.length > 0) {
+      const lats = activeWards.map(w => w.lat).filter(Boolean);
+      const lngs = activeWards.map(w => w.lng).filter(Boolean);
+      if (lats.length > 0) {
+        return {
+          lat: lats.reduce((a, b) => a + b, 0) / lats.length,
+          lng: lngs.reduce((a, b) => a + b, 0) / lngs.length,
+        };
+      }
+    }
+    return defaultCenter;
+  }, [activeWards]);
 
   const timeAgo = lastUpdated
     ? `Updated ${Math.round((Date.now() - lastUpdated.getTime()) / 1000)}s ago`
     : '';
+
+  const mapOptions = useMemo(() => ({
+    styles: darkMapStyles,
+    disableDefaultUI: false,
+    zoomControl: true,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: true,
+  }), []);
 
   return (
     <div className="dashboard-page page-container" id="dashboard-page">
@@ -186,6 +273,11 @@ export default function Dashboard() {
           <h1 className="page-title">Ward Stress Heatmap</h1>
           <p className="page-subtitle">
             {activeWards.length} wards in Delhi
+            {isLive && (
+              <span className="live-indicator" title="Real-time Firestore connection">
+                <Wifi size={12} /> Live
+              </span>
+            )}
             {lastUpdated && <span className="last-updated"> · {timeAgo}</span>}
           </p>
         </div>
@@ -197,77 +289,97 @@ export default function Dashboard() {
       <MetricSummary wards={activeWards} />
 
       <div className="heatmap-container glass-card" id="heatmap-container">
-        {loading ? (
+        {loading || !mapsLoaded ? (
           <div className="map-loading">
             <div className="skeleton" style={{ width: '100%', height: 500 }} />
           </div>
-        ) : error && wards.length === 0 ? (
-          <div className="map-error">
-            <p><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} /> {error}</p>
-            <button className="btn btn-primary" onClick={fetchHeatmap}>Retry</button>
-          </div>
         ) : (
-          <MapContainer
+          <GoogleMap
+            mapContainerStyle={mapContainerStyle}
             center={center}
             zoom={11}
-            style={{ height: 500, width: '100%' }}
-            id="leaflet-map"
+            options={mapOptions}
           >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <MapBounds wards={activeWards} />
-
             {activeWards.map((ward) => {
-              const score = ward.css_score || 0;
-              const label = getCSSLabel(score);
+              const score = ward.css_score || ward.currentCSS || 0;
               const color = getCSSColor(score);
-              /* Vary radius: critical wards are larger; stable wards are smaller */
-              const radius = score >= 76 ? 14 + (score - 76) * 0.2
-                           : score >= 56 ? 11
-                           : score >= 31 ? 8
-                           : 6;
+              const radius = score >= 76 ? 900 + (score - 76) * 20
+                           : score >= 56 ? 700
+                           : score >= 31 ? 500
+                           : 350;
+
               return (
-                <CircleMarker
+                <Circle
                   key={ward.ward_id || ward.id}
-                  center={[ward.lat, ward.lng]}
+                  center={{ lat: ward.lat, lng: ward.lng }}
                   radius={radius}
-                  pathOptions={{
+                  options={{
                     fillColor: color,
-                    fillOpacity: score >= 56 ? 0.75 : 0.5,
-                    color: color,
-                    weight: score >= 76 ? 2.5 : 1.5,
-                    opacity: 0.85,
+                    fillOpacity: score >= 56 ? 0.6 : 0.35,
+                    strokeColor: color,
+                    strokeWeight: score >= 76 ? 2.5 : 1.5,
+                    strokeOpacity: 0.85,
+                    clickable: true,
                   }}
-                  eventHandlers={{
-                    click: () => navigate(`/dashboard/wards/${ward.ward_id || ward.id}`, { state: { ward } }),
-                  }}
-                >
-                  <Tooltip direction="top" offset={[0, -8]} opacity={0.95}>
-                    <div style={{ fontSize: 12, lineHeight: 1.4 }}>
-                      <strong>{ward.ward_code || ward.name}</strong><br />
-                      CSS: {score.toFixed(1)} ({label})
-                      {ward.recent_event && <><br /><em>{ward.recent_event}</em></>}
-                    </div>
-                  </Tooltip>
-                  <Popup>
-                    <div className="ward-popup">
-                      <h4>{ward.ward_code || ward.name}</h4>
-                      <p className="popup-score">
-                        CSS: <strong>{score.toFixed(1)}</strong>
-                      </p>
-                      <span className={`badge badge-${label}`}>{label}</span>
-                      {ward.recent_event && <p className="popup-event">{ward.recent_event}</p>}
-                    </div>
-                  </Popup>
-                </CircleMarker>
+                  onClick={() => setSelectedWard(ward)}
+                />
               );
             })}
-          </MapContainer>
+
+            {selectedWard && (
+              <InfoWindow
+                position={{ lat: selectedWard.lat, lng: selectedWard.lng }}
+                onCloseClick={() => setSelectedWard(null)}
+              >
+                <div style={{
+                  background: '#0a1f1a',
+                  color: '#e0f2f1',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  minWidth: '160px',
+                }}>
+                  <h4 style={{ margin: '0 0 4px', color: '#1DE9B6', fontSize: '13px' }}>
+                    {selectedWard.ward_code || selectedWard.name}
+                  </h4>
+                  <p style={{ margin: '2px 0', fontSize: '12px' }}>
+                    CSS: <strong style={{ color: getCSSColor(selectedWard.css_score || selectedWard.currentCSS || 0) }}>
+                      {(selectedWard.css_score || selectedWard.currentCSS || 0).toFixed(1)}
+                    </strong>
+                    {' '}({getCSSLabel(selectedWard.css_score || selectedWard.currentCSS || 0)})
+                  </p>
+                  <button
+                    onClick={() => {
+                      navigate(`/dashboard/wards/${selectedWard.ward_id || selectedWard.id}`, { state: { ward: selectedWard } });
+                      setSelectedWard(null);
+                    }}
+                    style={{
+                      marginTop: '6px',
+                      padding: '4px 10px',
+                      background: '#1DE9B6',
+                      color: '#040b09',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    View Details →
+                  </button>
+                </div>
+              </InfoWindow>
+            )}
+          </GoogleMap>
         )}
 
         <HeatmapLegend />
+
+        {/* Google Maps attribution */}
+        <div style={{ padding: '6px 12px', fontSize: '10px', opacity: 0.5, textAlign: 'right' }}>
+          Powered by Google Maps Platform
+        </div>
       </div>
 
       {/* Time Scrubber */}
@@ -275,14 +387,14 @@ export default function Dashboard() {
         <HeatmapTimeScrubber baseWards={wards} onDayChange={handleScrubberChange} />
       )}
 
-      {/* Empty state for no critical wards */}
-      {activeWards.length > 0 && activeWards.filter((w) => w.css_score >= 76).length === 0 && (
+      {/* Empty state */}
+      {activeWards.length > 0 && activeWards.filter((w) => (w.css_score || w.currentCSS || 0) >= 76).length === 0 && (
         <div className="empty-state glass-card" id="no-critical">
           <p className="empty-state__text">No critical-stress wards detected. All {activeWards.length} wards below CSS 76.</p>
         </div>
       )}
 
-      <ActivityFeed />
+      <ActivityFeed wards={activeWards} />
     </div>
   );
 }
@@ -300,18 +412,17 @@ function seededRandom(seed) {
 function generateDemoWards() {
   const rng = seededRandom(42);
 
-  /* 3 cluster centers to simulate real population density */
   const clusters = [
-    { lat: 28.635, lng: 77.225, count: 12, stressRange: [15, 55] },  // central — mostly stable/elevated
-    { lat: 28.680, lng: 77.180, count: 10, stressRange: [35, 85] },  // north — mixed, some critical
-    { lat: 28.560, lng: 77.240, count: 8,  stressRange: [8, 45] },   // south — mostly calm
+    { lat: 28.635, lng: 77.225, count: 12, stressRange: [15, 55] },
+    { lat: 28.680, lng: 77.180, count: 10, stressRange: [35, 85] },
+    { lat: 28.560, lng: 77.240, count: 8,  stressRange: [8, 45] },
   ];
 
   const RECENT_EVENTS = [
     '3 pharmacy stock-outs today',
     'School attendance down 14%',
     'Utility payment delays +22%',
-    null, null, null, null, // most wards have no special event
+    null, null, null, null,
   ];
 
   const wards = [];
@@ -331,7 +442,17 @@ function generateDemoWards() {
         lat: lat + (rng() - 0.5) * 0.08,
         lng: lng + (rng() - 0.5) * 0.08,
         css_score: Math.round(score * 10) / 10,
+        currentCSS: Math.round(score * 10) / 10,
+        cssStatus: getCSSLabel(Math.round(score * 10) / 10),
         recent_event: RECENT_EVENTS[eventIdx],
+        signalBreakdown: {
+          pharmacy: +(rng() * 0.8).toFixed(2),
+          school: +(rng() * 0.7).toFixed(2),
+          utility: +(rng() * 0.6).toFixed(2),
+          social: +(rng() * 0.5).toFixed(2),
+          foodbank: +(rng() * 0.7).toFixed(2),
+          health: +(rng() * 0.6).toFixed(2),
+        },
       });
     }
   });

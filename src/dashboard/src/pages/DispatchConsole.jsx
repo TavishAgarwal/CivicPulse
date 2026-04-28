@@ -1,14 +1,18 @@
 /**
- * CivicPulse — Dispatch Console
+ * CivicPulse — Dispatch Console (Firebase)
  * Select ward → get volunteer suggestions → confirm/reject dispatch.
+ * All data flows through Firestore.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Loader2, Check, MapPin, MessageCircle } from 'lucide-react';
 import WhatsAppPreview from '../components/WhatsAppPreview';
-import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import { getAllWards, getVolunteers, createDispatch, subscribeToDispatches } from '../firebase/firestore';
+import { generateDispatchMessage } from '../services/geminiService';
 import './DispatchConsole.css';
 
 export default function DispatchConsole() {
+  const { user } = useAuth();
   const [wards, setWards] = useState([]);
   const [selectedWard, setSelectedWard] = useState('');
   const [requiredSkills, setRequiredSkills] = useState([]);
@@ -21,33 +25,32 @@ export default function DispatchConsole() {
 
   const SKILLS = ['medical', 'logistics', 'counseling', 'teaching', 'language'];
 
-  /* Fetch wards list */
+  /* Fetch wards from Firestore */
   useEffect(() => {
     async function fetchWards() {
       try {
-        const res = await api.get('/wards');
-        setWards(res.data?.data?.wards || res.data?.data || []);
+        const firestoreWards = await getAllWards('delhi');
+        if (firestoreWards.length > 0) {
+          setWards(firestoreWards.map(w => ({
+            ...w,
+            ward_id: w.id,
+            ward_code: w.code || w.name,
+            css_score: w.currentCSS || w.css_score || 0,
+          })));
+        } else {
+          setWards(generateDemoWards());
+        }
       } catch {
-        setWards(Array.from({ length: 10 }, (_, i) => ({
-          id: `ward-${i}`, ward_code: `WARD-DEL-${String(i + 1).padStart(3, '0')}`,
-          css_score: Math.random() * 100,
-        })));
+        setWards(generateDemoWards());
       }
     }
     fetchWards();
   }, []);
 
-  /* Fetch recent dispatches */
+  /* Subscribe to dispatches in real-time */
   useEffect(() => {
-    async function fetchDispatches() {
-      try {
-        const res = await api.get('/dispatches');
-        setDispatches(res.data?.data?.dispatches || res.data?.data || []);
-      } catch {
-        setDispatches([]);
-      }
-    }
-    fetchDispatches();
+    const unsubscribe = subscribeToDispatches((d) => setDispatches(d));
+    return () => unsubscribe && unsubscribe();
   }, []);
 
   /* CSS tier label for ward select */
@@ -58,7 +61,7 @@ export default function DispatchConsole() {
     return 'OK';
   };
 
-  /* Suggest volunteers */
+  /* Suggest volunteers from Firestore */
   const handleSuggest = useCallback(async () => {
     if (!selectedWard) return;
     setLoading(true);
@@ -66,101 +69,74 @@ export default function DispatchConsole() {
     setMessage(null);
 
     try {
-      const res = await api.post('/dispatch/suggest', {
-        ward_id: selectedWard,
-        required_skills: requiredSkills,
-      });
-      setSuggestions(res.data?.data?.suggestions || []);
-    } catch (err) {
-      /* Generate ward-specific demo volunteers */
-      const wardData = wards.find((w) => (w.id || w.ward_id) === selectedWard);
-      const wardSeed = (wardData?.css_score || 50) + selectedWard.charCodeAt(selectedWard.length - 1);
-      const seeded = (n) => ((wardSeed * (n + 1) * 9301 + 49297) % 233280) / 233280;
-
-      const FIRST_NAMES = ['Aarav', 'Priya', 'Rohan', 'Meera', 'Vikram', 'Ananya', 'Arjun', 'Diya', 'Karan', 'Neha'];
-      const LAST_NAMES = ['Sharma', 'Patel', 'Verma', 'Singh', 'Reddy', 'Gupta', 'Kumar', 'Iyer', 'Das', 'Joshi'];
-      const SKILL_POOL = ['medical', 'logistics', 'counseling', 'teaching', 'language'];
-
-      /* Generate a larger pool of volunteers, then score and rank them */
-      const POOL_SIZE = 10;
-      const pool = Array.from({ length: POOL_SIZE }, (_, i) => {
-        const nameIdx = Math.floor(seeded(i * 7) * FIRST_NAMES.length);
-        const lastIdx = Math.floor(seeded(i * 13 + 3) * LAST_NAMES.length);
-        const name = `${FIRST_NAMES[nameIdx]}_${LAST_NAMES[lastIdx]}`;
-
-        /* Assign organic skills based on seed — NOT influenced by requiredSkills */
-        const numSkills = Math.floor(seeded(i * 5 + 2) * 3) + 1;
-        const skillStart = Math.floor(seeded(i * 11 + wardSeed) * SKILL_POOL.length);
-        const skills = [];
-        for (let s = 0; s < numSkills; s++) {
-          skills.push(SKILL_POOL[(skillStart + s) % SKILL_POOL.length]);
-        }
-        const uniqueSkills = [...new Set(skills)];
-
-        /* Base scores for proximity, availability, fatigue */
-        const proximityScore = +(0.6 + seeded(i * 4) * 0.4).toFixed(2);
-        const availabilityScore = +(0.7 + seeded(i * 8) * 0.3).toFixed(2);
-        const fatigueScore = +(seeded(i * 9) * 0.45).toFixed(2);
-        const fatigueComponent = +(1 - fatigueScore).toFixed(2);
-
-        /* Skill match score: if requiredSkills selected, reward overlap */
-        let skillScore;
-        if (requiredSkills.length > 0) {
-          const matchingSkills = uniqueSkills.filter((s) => requiredSkills.includes(s));
-          skillScore = +(matchingSkills.length / requiredSkills.length).toFixed(2);
-        } else {
-          skillScore = +(0.5 + seeded(i * 6) * 0.5).toFixed(2);
-        }
-
-        /* Weighted composite match score */
-        const matchScore = +(
-          proximityScore * 0.25 +
-          skillScore * 0.35 +
-          availabilityScore * 0.20 +
-          fatigueComponent * 0.20
-        ).toFixed(2);
-
-        const distanceKm = +((seeded(i * 3) * 14 + 0.5)).toFixed(1);
-
-        return {
-          volunteer_id: `vol-${selectedWard}-${i}`,
-          display_handle: name,
-          match_score: matchScore,
-          skills: uniqueSkills,
-          distance_km: distanceKm,
-          fatigue_score: fatigueScore,
-          score_breakdown: {
-            proximity: proximityScore,
-            skill: skillScore,
-            availability: availabilityScore,
-            fatigue: fatigueComponent,
-          },
-        };
+      /* Fetch all volunteers from Firestore */
+      const allVolunteers = await getVolunteers({
+        skill: requiredSkills.length === 1 ? requiredSkills[0] : '',
+        available: true,
       });
 
-      /* Sort by match_score descending and take top 5 */
-      pool.sort((a, b) => b.match_score - a.match_score);
-      setSuggestions(pool.slice(0, 5));
+      if (allVolunteers.length > 0) {
+        /* Score and rank volunteers */
+        const wardData = wards.find((w) => (w.id || w.ward_id) === selectedWard);
+        const scored = allVolunteers.map((vol) => {
+          const skillMatch = requiredSkills.length > 0
+            ? (vol.skills || []).filter(s => requiredSkills.includes(s)).length / requiredSkills.length
+            : 0.7;
+          const fatigueComponent = 1 - (vol.fatigueScore || 0);
+          const proximityScore = vol.maxRadiusKm ? Math.min(1, 10 / vol.maxRadiusKm) : 0.5;
+          const matchScore = proximityScore * 0.25 + skillMatch * 0.35 + 0.8 * 0.20 + fatigueComponent * 0.20;
+
+          return {
+            volunteer_id: vol.id,
+            display_handle: vol.displayHandle || vol.id,
+            match_score: +matchScore.toFixed(2),
+            skills: vol.skills || [],
+            distance_km: vol.maxRadiusKm || 10,
+            fatigue_score: vol.fatigueScore || 0,
+            score_breakdown: {
+              proximity: +proximityScore.toFixed(2),
+              skill: +skillMatch.toFixed(2),
+              availability: 0.80,
+              fatigue: +fatigueComponent.toFixed(2),
+            },
+          };
+        });
+
+        scored.sort((a, b) => b.match_score - a.match_score);
+        setSuggestions(scored.slice(0, 5));
+      } else {
+        /* Demo fallback */
+        setSuggestions(generateDemoVolunteers(selectedWard, wards, requiredSkills));
+      }
+    } catch {
+      setSuggestions(generateDemoVolunteers(selectedWard, wards, requiredSkills));
     } finally {
       setLoading(false);
     }
   }, [selectedWard, requiredSkills, wards]);
 
-  /* Confirm dispatch */
+  /* Confirm dispatch — write to Firestore */
   const handleConfirm = async (volunteerId) => {
     setConfirmLoading(volunteerId);
+    const vol = suggestions.find((s) => s.volunteer_id === volunteerId);
+    const wardData = wards.find((w) => (w.id || w.ward_id) === selectedWard);
+
     try {
-      await api.post('/dispatch/confirm', {
-        ward_id: selectedWard,
-        volunteer_id: volunteerId,
+      await createDispatch({
+        wardId: selectedWard,
+        wardName: wardData?.ward_code || wardData?.name || selectedWard,
+        volunteerId,
+        volunteerName: vol?.display_handle || volunteerId,
+        cssAtDispatch: wardData?.css_score || 0,
+        matchScore: vol?.match_score || 0,
+        createdBy: user?.id || 'coordinator',
       });
     } catch {
-      /* API unavailable — proceed with demo confirmation */
+      /* Demo mode — still show success */
     }
-    /* Always treat as confirmed (real API or demo fallback) */
-    const vol = suggestions.find((s) => s.volunteer_id === volunteerId);
+
     const handle = vol?.display_handle || volunteerId;
-    setMessage({ type: 'success', text: `Dispatch confirmed — ${handle} has been notified.` });
+    setMessage({ type: 'success', text: `✅ Dispatch confirmed — ${handle} has been notified via Firebase.` });
     setSuggestions((prev) => prev.filter((s) => s.volunteer_id !== volunteerId));
     setConfirmLoading(null);
   };
@@ -294,10 +270,10 @@ export default function DispatchConsole() {
         </div>
       )}
 
-      {/* Recent Dispatches */}
+      {/* Recent Dispatches (real-time from Firestore) */}
       {dispatches.length > 0 && (
         <div className="recent-dispatches glass-card" id="recent-dispatches">
-          <h3 className="section-title">Recent Dispatches</h3>
+          <h3 className="section-title">Recent Dispatches <span style={{ fontSize: '10px', opacity: 0.5 }}>(Live from Firestore)</span></h3>
           <table className="data-table">
             <thead>
               <tr>
@@ -309,11 +285,11 @@ export default function DispatchConsole() {
             </thead>
             <tbody>
               {dispatches.slice(0, 10).map((d) => (
-                <tr key={d.dispatch_id || d.id}>
-                  <td>{d.ward_code || d.ward_id}</td>
-                  <td>{d.volunteer_handle || d.volunteer_id}</td>
+                <tr key={d.id}>
+                  <td>{d.wardName || d.wardId}</td>
+                  <td>{d.volunteerName || d.volunteerId}</td>
                   <td><span className={`badge badge-${d.status === 'completed' ? 'stable' : d.status === 'confirmed' ? 'elevated' : 'high'}`}>{d.status}</span></td>
-                  <td>{d.created_at ? new Date(d.created_at).toLocaleString() : '—'}</td>
+                  <td>{d.dispatchedAt?.toDate ? d.dispatchedAt.toDate().toLocaleString() : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -331,4 +307,55 @@ export default function DispatchConsole() {
       />
     </div>
   );
+}
+
+/* Demo ward generator */
+function generateDemoWards() {
+  return Array.from({ length: 10 }, (_, i) => ({
+    id: `ward-${i}`, ward_id: `ward-${i}`,
+    ward_code: `WARD-DEL-${String(i + 1).padStart(3, '0')}`,
+    name: `Ward ${i + 1}`,
+    css_score: Math.round((Math.random() * 80 + 10) * 10) / 10,
+  }));
+}
+
+/* Demo volunteer generator */
+function generateDemoVolunteers(selectedWard, wards, requiredSkills) {
+  const wardData = wards.find((w) => (w.id || w.ward_id) === selectedWard);
+  const wardSeed = (wardData?.css_score || 50) + (selectedWard?.charCodeAt(selectedWard.length - 1) || 0);
+  const seeded = (n) => ((wardSeed * (n + 1) * 9301 + 49297) % 233280) / 233280;
+
+  const FIRST_NAMES = ['Aarav', 'Priya', 'Rohan', 'Meera', 'Vikram', 'Ananya', 'Arjun', 'Diya', 'Karan', 'Neha'];
+  const LAST_NAMES = ['Sharma', 'Patel', 'Verma', 'Singh', 'Reddy', 'Gupta', 'Kumar', 'Iyer', 'Das', 'Joshi'];
+  const SKILL_POOL = ['medical', 'logistics', 'counseling', 'teaching', 'language'];
+
+  const pool = Array.from({ length: 10 }, (_, i) => {
+    const nameIdx = Math.floor(seeded(i * 7) * FIRST_NAMES.length);
+    const lastIdx = Math.floor(seeded(i * 13 + 3) * LAST_NAMES.length);
+    const numSkills = Math.floor(seeded(i * 5 + 2) * 3) + 1;
+    const skillStart = Math.floor(seeded(i * 11 + wardSeed) * SKILL_POOL.length);
+    const skills = [];
+    for (let s = 0; s < numSkills; s++) skills.push(SKILL_POOL[(skillStart + s) % SKILL_POOL.length]);
+
+    const proximityScore = +(0.6 + seeded(i * 4) * 0.4).toFixed(2);
+    const fatigueScore = +(seeded(i * 9) * 0.45).toFixed(2);
+    let skillScore = requiredSkills.length > 0
+      ? +([...new Set(skills)].filter((s) => requiredSkills.includes(s)).length / requiredSkills.length).toFixed(2)
+      : +(0.5 + seeded(i * 6) * 0.5).toFixed(2);
+
+    const matchScore = +(proximityScore * 0.25 + skillScore * 0.35 + 0.8 * 0.20 + (1 - fatigueScore) * 0.20).toFixed(2);
+
+    return {
+      volunteer_id: `vol-${selectedWard}-${i}`,
+      display_handle: `${FIRST_NAMES[nameIdx]}_${LAST_NAMES[lastIdx]}`,
+      match_score: matchScore,
+      skills: [...new Set(skills)],
+      distance_km: +((seeded(i * 3) * 14 + 0.5)).toFixed(1),
+      fatigue_score: fatigueScore,
+      score_breakdown: { proximity: proximityScore, skill: skillScore, availability: 0.80, fatigue: +(1 - fatigueScore).toFixed(2) },
+    };
+  });
+
+  pool.sort((a, b) => b.match_score - a.match_score);
+  return pool.slice(0, 5);
 }

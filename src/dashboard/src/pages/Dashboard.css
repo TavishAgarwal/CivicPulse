@@ -76,17 +76,35 @@
   overflow: hidden;
 }
 
-.heatmap-container .leaflet-container {
-  border-radius: var(--radius-md);
-  box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+/* Google Maps InfoWindow override */
+.gm-style-iw {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+.gm-style-iw-d {
+  overflow: visible !important;
 }
 
-.heatmap-container .leaflet-tile-pane {
-  filter: invert(100%) hue-rotate(170deg) saturate(1.5) brightness(0.6) contrast(1.2);
+/* Live indicator (Firestore real-time) */
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: rgba(29, 233, 182, 0.12);
+  border: 1px solid rgba(29, 233, 182, 0.25);
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: #1DE9B6;
+  animation: livePulse 2s ease-in-out infinite;
 }
 
-.theme-light .heatmap-container .leaflet-tile-pane {
-  filter: none;
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 /* ── Legend — functional, compact ──────────────────────── */

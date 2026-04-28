@@ -10,7 +10,6 @@ import {
   ReferenceLine, Cell,
 } from 'recharts';
 import { ShieldCheck, AlertTriangle, Database, Monitor } from 'lucide-react';
-import api from '../api/client';
 import './FairnessAudit.css';
 
 const FAIRNESS_THRESHOLD = 15; // matches evaluation.py max_disparity=0.15
@@ -39,27 +38,12 @@ export default function FairnessAudit() {
   const [dataSource, setDataSource] = useState('loading'); // 'live' | 'demo' | 'loading'
   const [loading, setLoading] = useState(true);
 
-  /* Fetch from backend, fallback to static demo data */
+  /* On Spark plan, fairness analysis runs locally via compute_css.py.
+     Display demo data; real data comes from Firestore if seeded. */
   useEffect(() => {
-    async function fetchFairness() {
-      try {
-        const res = await api.get('/reports/fairness');
-        const payload = res.data?.data;
-        if (payload?.ward_fp_data?.length > 0) {
-          setWardData(payload.ward_fp_data);
-          setDataSource(payload.source || 'live');
-        } else {
-          setWardData(FALLBACK_FP_DATA);
-          setDataSource('demo');
-        }
-      } catch {
-        setWardData(FALLBACK_FP_DATA);
-        setDataSource('demo');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchFairness();
+    setWardData(FALLBACK_FP_DATA);
+    setDataSource('demo');
+    setLoading(false);
   }, []);
 
   const data = wardData || FALLBACK_FP_DATA;

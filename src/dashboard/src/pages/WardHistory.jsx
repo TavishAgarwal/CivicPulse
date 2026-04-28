@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, AreaChart } from 'recharts';
 import { ArrowLeft } from 'lucide-react';
-import api from '../api/client';
+import { getWardHistory } from '../firebase/firestore';
 import './WardHistory.css';
 
 export default function WardHistory() {
@@ -18,10 +18,16 @@ export default function WardHistory() {
   useEffect(() => {
     async function fetchHistory() {
       try {
-        const res = await api.get(`/wards/${wardId}/history`);
-        setHistory(res.data?.data?.history || []);
+        const firestoreHistory = await getWardHistory('delhi', wardId);
+        if (firestoreHistory.length > 0) {
+          setHistory(firestoreHistory.map(h => ({
+            date: h.date,
+            css_score: h.cssScore || 0,
+          })));
+        } else {
+          setHistory(generateDemoHistory());
+        }
       } catch {
-        /* Demo data */
         setHistory(generateDemoHistory());
       } finally {
         setLoading(false);

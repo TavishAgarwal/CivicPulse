@@ -3,7 +3,7 @@
  * Displays threshold config, feature flags, and system info.
  */
 import { useState, useEffect } from 'react';
-import api from '../api/client';
+import { getConfig } from '../firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { Check, X, CircleDot } from 'lucide-react';
 import './Settings.css';
@@ -15,8 +15,19 @@ export default function Settings() {
   useEffect(() => {
     async function fetchConfig() {
       try {
-        const res = await api.get('/health');
-        setConfig(res.data?.data || res.data || null);
+        const firestoreConfig = await getConfig();
+        setConfig({
+          status: 'ok',
+          version: '0.1.0',
+          environment: import.meta.env.VITE_ENV || 'development',
+          thresholds: {
+            stable_max: firestoreConfig.cssStableMax || 30,
+            elevated_max: firestoreConfig.cssElevatedMax || 55,
+            high_threshold: firestoreConfig.cssHighThreshold || 56,
+            critical_threshold: firestoreConfig.cssCriticalThreshold || 76,
+            auto_dispatch_enabled: firestoreConfig.autoDispatchMinCSS <= 76,
+          },
+        });
       } catch {
         setConfig({
           status: 'ok',
@@ -94,7 +105,7 @@ export default function Settings() {
           />
           <SettingRow label="Version" value={config?.version || '0.1.0'} />
           <SettingRow label="Environment" value={config?.environment || '—'} />
-          <SettingRow label="Map Provider" value="OpenStreetMap (no API key)" />
+          <SettingRow label="Map Provider" value="Google Maps Platform" />
         </div>
       </div>
 

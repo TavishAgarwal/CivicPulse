@@ -45,11 +45,14 @@ export default function Login() {
       await login(email, password);
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      const msg =
-        err.response?.data?.detail?.message ||
-        err.response?.data?.message ||
-        'Login failed. Please check your credentials.';
-      setError(msg);
+      const firebaseErrors = {
+        'auth/user-not-found': 'No account found with this email.',
+        'auth/wrong-password': 'Incorrect password.',
+        'auth/invalid-email': 'Invalid email format.',
+        'auth/too-many-requests': 'Too many attempts. Please wait and try again.',
+        'auth/invalid-credential': 'Invalid credentials. Please check email and password.',
+      };
+      setError(firebaseErrors[err.code] || err.message || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -74,11 +77,12 @@ export default function Login() {
       await register(email, password, role);
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      const msg =
-        err.response?.data?.detail?.message ||
-        err.response?.data?.message ||
-        'Registration failed. Please try again.';
-      setError(msg);
+      const firebaseErrors = {
+        'auth/email-already-in-use': 'An account with this email already exists.',
+        'auth/weak-password': 'Password is too weak. Use at least 6 characters.',
+        'auth/invalid-email': 'Invalid email format.',
+      };
+      setError(firebaseErrors[err.code] || err.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

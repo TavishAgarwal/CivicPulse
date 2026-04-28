@@ -1,0 +1,65 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isCoordinator() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'coordinator';
+    }
+
+    // ── Users ─────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if request.auth.uid == userId;
+    }
+
+    // ── Cities + Wards (public read for demo mode) ───
+    match /cities/{cityId} {
+      allow read: if true;
+      allow write: if isCoordinator();
+
+      match /wards/{wardId} {
+        allow read: if true;
+        allow write: if isCoordinator();
+
+        match /cssHistory/{historyId} {
+          allow read: if true;
+          allow write: if false; // Only admin SDK writes
+        }
+      }
+    }
+
+    // ── Volunteers (public read for demo mode) ───────
+    match /volunteers/{volunteerId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() &&
+        (request.auth.uid == volunteerId || isCoordinator());
+    }
+
+    // ── Dispatches (public read for demo mode) ───────
+    match /dispatches/{dispatchId} {
+      allow read: if true;
+      allow create: if isCoordinator();
+      allow update: if isAuthenticated();
+    }
+
+    // ── Signals ───────────────────────────────────────
+    match /signals/{signalId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Only admin SDK writes
+    }
+
+    // ── Config (read-only) ────────────────────────────
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
