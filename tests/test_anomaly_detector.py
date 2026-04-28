@@ -38,42 +38,58 @@ class TestAnomalyDetector:
         """Train should accept numpy array or list of feature vectors."""
         detector = AnomalyDetector()
         # Normal data distribution
-        data = np.random.randn(100, 5)
+        data = np.random.randn(100, 6)
         detector.train(data)
         assert detector.model is not None
 
     def test_detect_returns_results(self):
         """Detect should return anomaly detection results."""
         detector = AnomalyDetector()
-        train_data = np.random.randn(100, 5)
+        train_data = np.random.randn(100, 6)
         detector.train(train_data)
 
-        test_data = np.random.randn(1, 5)
-        result = detector.detect(test_data)
+        test_features = {
+            "pharmacy_intensity_24h": 0.5,
+            "school_intensity_24h": 0.3,
+            "utility_intensity_24h": 0.2,
+            "social_intensity_24h": 0.4,
+            "foodbank_intensity_24h": 0.1,
+            "health_intensity_24h": 0.6,
+        }
+        result = detector.detect("ward-001", test_features)
         assert result is not None
+        assert "anomaly" in result
 
     def test_severity_score_bounded(self):
         """Severity scores should be between 0 and 1."""
         detector = AnomalyDetector()
-        train_data = np.random.randn(200, 5)
+        train_data = np.random.randn(200, 6)
         detector.train(train_data)
 
-        # Test with normal data
-        normal = np.random.randn(1, 5) * 0.5
-        result = detector.detect(normal)
-        if hasattr(result, "severity"):
-            assert 0.0 <= result.severity <= 1.0
+        test_features = {
+            "pharmacy_intensity_24h": 0.1,
+            "school_intensity_24h": 0.1,
+            "utility_intensity_24h": 0.1,
+            "social_intensity_24h": 0.1,
+            "foodbank_intensity_24h": 0.1,
+            "health_intensity_24h": 0.1,
+        }
+        result = detector.detect("ward-002", test_features)
+        assert 0.0 <= result["severity"] <= 1.0
 
     def test_detects_extreme_outlier(self):
         """Extreme outliers should be detected as anomalous."""
         detector = AnomalyDetector()
-        # Train on normal distribution
-        train_data = np.random.randn(200, 5) * 0.1
+        train_data = np.random.randn(200, 6) * 0.1
         detector.train(train_data)
 
-        # Test with extreme outlier
-        outlier = np.array([[100.0, 100.0, 100.0, 100.0, 100.0]])
-        result = detector.detect(outlier)
-        # Should be flagged as anomaly
-        if hasattr(result, "is_anomaly"):
-            assert result.is_anomaly is True
+        outlier_features = {
+            "pharmacy_intensity_24h": 100.0,
+            "school_intensity_24h": 100.0,
+            "utility_intensity_24h": 100.0,
+            "social_intensity_24h": 100.0,
+            "foodbank_intensity_24h": 100.0,
+            "health_intensity_24h": 100.0,
+        }
+        result = detector.detect("ward-003", outlier_features)
+        assert result["anomaly"] is True

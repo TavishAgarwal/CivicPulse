@@ -25,20 +25,25 @@ def test_client():
 class TestHealthEndpoint:
     """Tests for GET /health."""
 
-    @patch("routes.health.redis_lib")
-    @patch("routes.health.asyncpg", new_callable=MagicMock)
-    def test_health_returns_200(self, mock_asyncpg, mock_redis, test_client):
+    def test_health_returns_200(self, test_client):
         """Health endpoint should always return 200 even if dependencies are down."""
-        mock_redis.from_url.return_value.ping.side_effect = Exception("Redis down")
-        response = test_client.get("/health")
+        # Mock asyncpg.connect to fail and redis to fail
+        mock_asyncpg = MagicMock()
+        mock_asyncpg.connect = AsyncMock(side_effect=Exception("DB down"))
+        with patch.dict("sys.modules", {"asyncpg": mock_asyncpg}), \
+             patch("routes.health.redis_lib") as mock_redis:
+            mock_redis.from_url.return_value.ping.side_effect = Exception("Redis down")
+            response = test_client.get("/health")
         assert response.status_code == 200
 
-    @patch("routes.health.redis_lib")
-    @patch("routes.health.asyncpg", new_callable=MagicMock)
-    def test_health_returns_required_fields(self, mock_asyncpg, mock_redis, test_client):
+    def test_health_returns_required_fields(self, test_client):
         """Health response must include status, version, and dependency checks."""
-        mock_redis.from_url.return_value.ping.side_effect = Exception("down")
-        response = test_client.get("/health")
+        mock_asyncpg = MagicMock()
+        mock_asyncpg.connect = AsyncMock(side_effect=Exception("down"))
+        with patch.dict("sys.modules", {"asyncpg": mock_asyncpg}), \
+             patch("routes.health.redis_lib") as mock_redis:
+            mock_redis.from_url.return_value.ping.side_effect = Exception("down")
+            response = test_client.get("/health")
         data = response.json()
 
         assert "status" in data
@@ -48,24 +53,26 @@ class TestHealthEndpoint:
         assert "db_connected" in data
         assert "redis_connected" in data
 
-    @patch("routes.health.redis_lib")
-    @patch("routes.health.asyncpg", new_callable=MagicMock)
-    def test_health_degraded_when_db_down(self, mock_asyncpg, mock_redis, test_client):
+    def test_health_degraded_when_db_down(self, test_client):
         """Status should be 'degraded' when database is unreachable."""
+        mock_asyncpg = MagicMock()
         mock_asyncpg.connect = AsyncMock(side_effect=Exception("DB connection failed"))
-        mock_redis.from_url.return_value.ping.side_effect = Exception("down")
-
-        response = test_client.get("/health")
+        with patch.dict("sys.modules", {"asyncpg": mock_asyncpg}), \
+             patch("routes.health.redis_lib") as mock_redis:
+            mock_redis.from_url.return_value.ping.side_effect = Exception("down")
+            response = test_client.get("/health")
         data = response.json()
         assert data["status"] == "degraded"
         assert data["db_connected"] is False
 
-    @patch("routes.health.redis_lib")
-    @patch("routes.health.asyncpg", new_callable=MagicMock)
-    def test_health_shows_integration_status(self, mock_asyncpg, mock_redis, test_client):
+    def test_health_shows_integration_status(self, test_client):
         """Health should report integration availability."""
-        mock_redis.from_url.return_value.ping.side_effect = Exception("down")
-        response = test_client.get("/health")
+        mock_asyncpg = MagicMock()
+        mock_asyncpg.connect = AsyncMock(side_effect=Exception("down"))
+        with patch.dict("sys.modules", {"asyncpg": mock_asyncpg}), \
+             patch("routes.health.redis_lib") as mock_redis:
+            mock_redis.from_url.return_value.ping.side_effect = Exception("down")
+            response = test_client.get("/health")
         data = response.json()
 
         assert "integrations" in data

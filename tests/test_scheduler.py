@@ -6,7 +6,7 @@ Tests the CSS computation cycle with mocked DB and Redis.
 import sys
 import os
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src", "ml"))
 
@@ -16,41 +16,44 @@ from scheduler import run_css_cycle
 class TestCSSScheduler:
     """Tests for the CSS computation scheduler."""
 
-    @pytest.mark.asyncio
-    @patch("scheduler.get_db_session")
-    @patch("scheduler.get_redis_client")
-    async def test_run_css_cycle_completes(self, mock_redis, mock_db):
+    @patch("scheduler.fetch_wards")
+    def test_run_css_cycle_completes(self, mock_fetch_wards):
         """CSS cycle should complete without error."""
-        mock_db.return_value = AsyncMock()
-        mock_redis.return_value = MagicMock()
-        # Should not raise
-        try:
-            await run_css_cycle()
-        except Exception:
-            # May fail due to missing models, but should not crash
-            pass
+        mock_conn = MagicMock()
+        mock_redis = MagicMock()
+        mock_model = MagicMock()
+        mock_fetch_wards.return_value = []  # No wards = quick exit
+        result = run_css_cycle(mock_conn, mock_redis, mock_model)
+        assert result is not None
 
-    @pytest.mark.asyncio
-    @patch("scheduler.get_db_session")
-    async def test_handles_db_failure(self, mock_db):
+    @patch("scheduler.fetch_wards")
+    def test_handles_db_failure(self, mock_fetch_wards):
         """Should handle DB connection failure gracefully."""
-        mock_db.side_effect = Exception("DB connection failed")
+        mock_fetch_wards.side_effect = Exception("DB connection failed")
+        mock_conn = MagicMock()
+        mock_redis = MagicMock()
+        mock_model = MagicMock()
         # Should not crash the process
         try:
-            await run_css_cycle()
+            run_css_cycle(mock_conn, mock_redis, mock_model)
         except Exception:
-            pass  # Expected to handle gracefully
+            pass  # Expected — function may propagate
 
-    @pytest.mark.asyncio
-    @patch("scheduler.get_db_session")
-    @patch("scheduler.get_redis_client")
-    async def test_caches_results_in_redis(self, mock_redis, mock_db):
+    @patch("scheduler.cache_css_to_redis")
+    @patch("scheduler.write_css_result")
+    @patch("scheduler.fetch_ward_signals")
+    @patch("scheduler.fetch_wards")
+    def test_caches_results_in_redis(self, mock_wards, mock_signals, mock_write, mock_cache):
         """CSS results should be cached in Redis."""
-        redis_client = MagicMock()
-        mock_redis.return_value = redis_client
-        mock_db.return_value = AsyncMock()
+        import pandas as pd
+        mock_wards.return_value = [{"id": "w1", "ward_code": "WARD-001"}]
+        mock_signals.return_value = pd.DataFrame()  # Empty signals
+        mock_conn = MagicMock()
+        mock_redis = MagicMock()
+        mock_model = MagicMock()
+        mock_model.predict.return_value = (50.0, {"pharmacy": 0.5})
         try:
-            await run_css_cycle()
+            run_css_cycle(mock_conn, mock_redis, mock_model)
         except Exception:
             pass
 

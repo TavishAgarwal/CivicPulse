@@ -13,9 +13,9 @@ import random
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
-from ..anonymizer import anonymize_at_source
-from ..base import BaseConnector, UnifiedSignal
-from ..registry import register_mock_connector
+from anonymizer import anonymize_at_source
+from base import BaseConnector, UnifiedSignal
+from registry import register_mock_connector
 
 logger = logging.getLogger(__name__)
 

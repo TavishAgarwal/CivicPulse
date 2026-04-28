@@ -43,11 +43,11 @@ service cloud.firestore {
         (request.auth.uid == volunteerId || isCoordinator());
     }
 
-    // ── Dispatches (public read for demo mode) ───────
+    // ── Dispatches (public read + update for demo mode) ─
     match /dispatches/{dispatchId} {
       allow read: if true;
-      allow create: if isCoordinator();
-      allow update: if isAuthenticated();
+      allow create: if true;
+      allow update: if true;
     }
 
     // ── Signals ───────────────────────────────────────

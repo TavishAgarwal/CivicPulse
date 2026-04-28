@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
 import 'services/notification_service.dart';
@@ -14,6 +15,14 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Sign in anonymously so Firestore security rules allow writes
+  try {
+    await FirebaseAuth.instance.signInAnonymously();
+    debugPrint('[Auth] Signed in anonymously');
+  } catch (e) {
+    debugPrint('[Auth] Anonymous sign-in failed: $e');
+  }
 
   // Initialize FCM notifications
   final notificationService = NotificationService();

@@ -15,9 +15,9 @@ from typing import AsyncGenerator
 
 import httpx
 
-from ..anonymizer import anonymize_at_source
-from ..base import BaseConnector, UnifiedSignal
-from ..registry import register_connector
+from anonymizer import anonymize_at_source
+from base import BaseConnector, UnifiedSignal
+from registry import register_connector
 
 logger = logging.getLogger(__name__)
 

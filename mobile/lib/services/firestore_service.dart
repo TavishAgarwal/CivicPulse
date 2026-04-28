@@ -36,7 +36,7 @@ class FirestoreService {
   Stream<List<Map<String, dynamic>>> watchDispatches(
       {String? volunteerId}) {
     Query<Map<String, dynamic>> query =
-        _db.collection('dispatches').orderBy('createdAt', descending: true);
+        _db.collection('dispatches').orderBy('dispatchedAt', descending: true);
     if (volunteerId != null) {
       query = query.where('volunteerId', isEqualTo: volunteerId);
     }

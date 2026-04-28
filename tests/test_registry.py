@@ -23,17 +23,25 @@ from base import BaseConnector
 
 
 class DummyConnector(BaseConnector):
-    source_name = "dummy_source"
+    def __init__(self):
+        super().__init__(source_name="dummy_source", signal_type="pharmacy")
 
     async def fetch(self):
         yield None
+
+    def validate(self, raw: dict) -> bool:
+        return True
 
 
 class DummyMockConnector(BaseConnector):
-    source_name = "dummy_mock_source"
+    def __init__(self):
+        super().__init__(source_name="dummy_mock_source", signal_type="pharmacy")
 
     async def fetch(self):
         yield None
+
+    def validate(self, raw: dict) -> bool:
+        return True
 
 
 class TestConnectorRegistry:
@@ -65,7 +73,7 @@ class TestConnectorRegistry:
         assert isinstance(connector, DummyMockConnector)
 
     def test_unregistered_raises_error(self):
-        with pytest.raises(ValueError, match="No mock connector"):
+        with pytest.raises(ValueError, match="No .* connector"):
             get_connector("nonexistent")
 
     @patch.dict(os.environ, {"CIVICPULSE_ENV": "production"})

@@ -82,14 +82,23 @@ class DispatchesScreen extends StatelessWidget {
   }
 }
 
-class _DispatchCard extends StatelessWidget {
+class _DispatchCard extends StatefulWidget {
   final Map<String, dynamic> dispatch;
   final FirestoreService fs;
 
   const _DispatchCard({required this.dispatch, required this.fs});
 
+  @override
+  State<_DispatchCard> createState() => _DispatchCardState();
+}
+
+class _DispatchCardState extends State<_DispatchCard> {
+  bool _loading = false;
+
   Color _statusColor(String status) {
     switch (status.toLowerCase()) {
+      case 'pending':
+        return AppTheme.elevated;
       case 'active':
         return AppTheme.accent;
       case 'confirmed':
@@ -105,6 +114,8 @@ class _DispatchCard extends StatelessWidget {
 
   IconData _statusIcon(String status) {
     switch (status.toLowerCase()) {
+      case 'pending':
+        return Icons.hourglass_top;
       case 'active':
         return Icons.flash_on;
       case 'confirmed':
@@ -118,14 +129,48 @@ class _DispatchCard extends StatelessWidget {
     }
   }
 
+  Future<void> _updateStatus(String dispatchId, String newStatus) async {
+    if (dispatchId.isEmpty) {
+      debugPrint('[Dispatch] ERROR: dispatchId is empty!');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Dispatch ID is missing')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _loading = true);
+    debugPrint('[Dispatch] Updating $dispatchId to $newStatus');
+
+    try {
+      await widget.fs.updateDispatchStatus(dispatchId, newStatus);
+      debugPrint('[Dispatch] Successfully updated to $newStatus');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Dispatch $newStatus ✓')),
+        );
+      }
+    } catch (e) {
+      debugPrint('[Dispatch] ERROR updating status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final status = dispatch['status'] as String? ?? 'pending';
-    final wardId = dispatch['wardId'] as String? ?? '—';
-    final volunteer = dispatch['volunteerName'] as String? ?? '—';
-    final reason = dispatch['reason'] as String? ?? '';
+    final status = widget.dispatch['status'] as String? ?? 'pending';
+    final wardId = widget.dispatch['wardId'] as String? ?? '—';
+    final volunteer = widget.dispatch['volunteerName'] as String? ?? '—';
+    final reason = widget.dispatch['reason'] as String? ?? '';
     final color = _statusColor(status);
-    final dispatchId = dispatch['id'] as String? ?? '';
+    final dispatchId = widget.dispatch['id'] as String? ?? '';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -192,67 +237,82 @@ class _DispatchCard extends StatelessWidget {
                     fontSize: 11,
                   )),
             ],
-            // Action buttons for active dispatches
-            if (status.toLowerCase() == 'active' ||
+            // Action buttons for dispatches
+            if (status.toLowerCase() == 'pending' ||
+                status.toLowerCase() == 'active' ||
                 status.toLowerCase() == 'confirmed') ...[
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  if (status.toLowerCase() == 'active')
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.check, size: 16),
-                        label: const Text('ACCEPT'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.accent,
-                          side: const BorderSide(color: AppTheme.accent),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          textStyle: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1,
+              if (_loading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(8),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppTheme.accent,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Row(
+                  children: [
+                    if (status.toLowerCase() == 'pending' ||
+                        status.toLowerCase() == 'active')
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.check, size: 16),
+                          label: const Text('ACCEPT'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.accent,
+                            side: const BorderSide(color: AppTheme.accent),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            textStyle: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1,
+                            ),
                           ),
+                          onPressed: () =>
+                              _updateStatus(dispatchId, 'confirmed'),
                         ),
-                        onPressed: () {
-                          fs.updateDispatchStatus(dispatchId, 'confirmed');
-                        },
                       ),
-                    ),
-                  if (status.toLowerCase() == 'active')
-                    const SizedBox(width: 8),
-                  if (status.toLowerCase() == 'confirmed')
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.check_circle, size: 16),
-                        label: const Text('COMPLETE'),
-                        onPressed: () {
-                          fs.updateDispatchStatus(dispatchId, 'completed');
-                        },
+                    if (status.toLowerCase() == 'pending' ||
+                        status.toLowerCase() == 'active')
+                      const SizedBox(width: 8),
+                    if (status.toLowerCase() == 'confirmed')
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.check_circle, size: 16),
+                          label: const Text('COMPLETE'),
+                          onPressed: () =>
+                              _updateStatus(dispatchId, 'completed'),
+                        ),
                       ),
-                    ),
-                  if (status.toLowerCase() != 'completed')
-                    const SizedBox(width: 8),
-                  if (status.toLowerCase() != 'completed')
-                    SizedBox(
-                      width: 90,
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.critical,
-                          side: const BorderSide(color: AppTheme.critical),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          textStyle: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                    if (status.toLowerCase() != 'completed')
+                      const SizedBox(width: 8),
+                    if (status.toLowerCase() != 'completed')
+                      SizedBox(
+                        width: 90,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.critical,
+                            side: const BorderSide(color: AppTheme.critical),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            textStyle: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
+                          onPressed: () =>
+                              _updateStatus(dispatchId, 'cancelled'),
+                          child: const Text('DECLINE'),
                         ),
-                        onPressed: () {
-                          fs.updateDispatchStatus(dispatchId, 'cancelled');
-                        },
-                        child: const Text('DECLINE'),
                       ),
-                    ),
-                ],
-              ),
+                  ],
+                ),
             ],
           ],
         ),
