@@ -93,7 +93,6 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.24.0"
           channel: stable
           cache: true
 
@@ -130,8 +129,8 @@ jobs:
         run: |
           echo "Scanning ingestion layer for PII leaks..."
           # Verify all connectors call anonymize_at_source
-          CONNECTOR_COUNT=$(find src/ingestion/connectors -name "*.py" | wc -l)
-          ANONYMIZE_COUNT=$(grep -rl "anonymize_at_source" src/ingestion/connectors/ | wc -l)
+          CONNECTOR_COUNT=$(find src/ingestion/connectors -name "*.py" ! -name "__init__.py" | wc -l)
+          ANONYMIZE_COUNT=$(grep -rl "anonymize_at_source" src/ingestion/connectors/ --include="*.py" | grep -v "__init__.py" | wc -l)
           echo "Connectors: $CONNECTOR_COUNT, With anonymization: $ANONYMIZE_COUNT"
           if [ "$CONNECTOR_COUNT" -ne "$ANONYMIZE_COUNT" ]; then
             echo "❌ ERROR: Not all connectors call anonymize_at_source!"

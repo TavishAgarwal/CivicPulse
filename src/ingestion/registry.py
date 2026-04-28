@@ -10,7 +10,10 @@ import os
 import logging
 from typing import Type
 
-from .base import BaseConnector
+try:
+    from .base import BaseConnector
+except ImportError:
+    from base import BaseConnector
 
 logger = logging.getLogger(__name__)
 
