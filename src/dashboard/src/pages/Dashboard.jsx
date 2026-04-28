@@ -56,7 +56,7 @@ function MetricSummary({ wards }) {
     : '—';
 
   return (
-    <div className="metric-summary" id="metric-summary">
+    <div className="metric-summary" id="metric-summary" role="region" aria-label="Ward stress metrics summary">
       <div className="metric-card" style={{ borderLeft: `3px solid var(--color-critical)` }}>
         <span className="metric-label">Critical Wards</span>
         <span className="metric-value">{critical}</span>
@@ -81,7 +81,7 @@ function MetricSummary({ wards }) {
 /* ── Heatmap Legend ─────────────────────────────────────── */
 function HeatmapLegend() {
   return (
-    <div className="heatmap-legend" id="heatmap-legend">
+    <div className="heatmap-legend" id="heatmap-legend" role="complementary" aria-label="CSS score legend">
       <span className="legend-label">CSS Score</span>
       <div className="legend-items">
         <div className="legend-item"><span className="legend-swatch" style={{ background: '#22c55e' }} />0–30 Stable</div>
@@ -130,7 +130,7 @@ function ActivityFeed({ wards }) {
   };
 
   return (
-    <div className="activity-feed glass-card" id="activity-feed">
+    <div className="activity-feed glass-card" id="activity-feed" role="log" aria-label="Recent ward activity feed" aria-live="polite">
       <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <Activity size={16} /> Recent Activity
       </h3>
@@ -267,7 +267,7 @@ export default function Dashboard() {
   }), []);
 
   return (
-    <div className="dashboard-page page-container" id="dashboard-page">
+    <div className="dashboard-page page-container" id="dashboard-page" role="main" aria-label="Ward stress heatmap dashboard">
       <div className="dashboard-header">
         <div>
           <h1 className="page-title">Ward Stress Heatmap</h1>
@@ -281,14 +281,14 @@ export default function Dashboard() {
             {lastUpdated && <span className="last-updated"> · {timeAgo}</span>}
           </p>
         </div>
-        <button className="btn btn-secondary" onClick={fetchHeatmap} id="refresh-heatmap">
-          <RefreshCw size={14} /> Refresh
+        <button className="btn btn-secondary" onClick={fetchHeatmap} id="refresh-heatmap" aria-label="Refresh heatmap data">
+          <RefreshCw size={14} aria-hidden="true" /> Refresh
         </button>
       </div>
 
       <MetricSummary wards={activeWards} />
 
-      <div className="heatmap-container glass-card" id="heatmap-container">
+      <div className="heatmap-container glass-card" id="heatmap-container" role="region" aria-label="Interactive ward stress heatmap">
         {loading || !mapsLoaded ? (
           <div className="map-loading">
             <div className="skeleton" style={{ width: '100%', height: 500 }} />

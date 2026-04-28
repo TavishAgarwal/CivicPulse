@@ -1,87 +1,140 @@
-name: CivicPulse CI
+# ============================================================
+# CivicPulse — CI Pipeline
+# Runs on every push and pull request to main/dev/staging.
+# ============================================================
+
+name: CI
 
 on:
   push:
     branches: [main, dev, staging]
   pull_request:
-    branches: [main]
+    branches: [main, dev, staging]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # ── Python Backend Tests ────────────────────────────────
+  # ── Python Tests (Ingestion, ML, Dispatch, API) ───────────
   python-tests:
+    name: Python Tests
     runs-on: ubuntu-latest
-    name: Python Tests & Coverage
+    defaults:
+      run:
+        working-directory: .
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libpq-dev
+          python-version: "3.11"
+          cache: pip
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r src/api/requirements.txt -r src/ml/requirements.txt
-          pip install pytest pytest-cov
+          pip install -r src/api/requirements.txt
+          pip install -r src/ml/requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v --cov=src --cov-report=term --cov-fail-under=50 || true
+          pytest tests/ -v \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-fail-under=70
+        env:
+          CIVICPULSE_ENV: test
+          DATABASE_URL: sqlite:///test.db
+          REDIS_URL: redis://localhost:6379/0
 
-  # ── Dashboard Build ─────────────────────────────────────
+  # ── React Dashboard Build ─────────────────────────────────
   dashboard-build:
+    name: Dashboard Build
     runs-on: ubuntu-latest
-    name: Dashboard Build Check
+    defaults:
+      run:
+        working-directory: src/dashboard
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: npm
           cache-dependency-path: src/dashboard/package-lock.json
 
       - name: Install dependencies
-        working-directory: src/dashboard
         run: npm ci
 
-      - name: Build
-        working-directory: src/dashboard
-        env:
-          VITE_FIREBASE_API_KEY: test
-          VITE_FIREBASE_AUTH_DOMAIN: test.firebaseapp.com
-          VITE_FIREBASE_PROJECT_ID: test
-          VITE_FIREBASE_STORAGE_BUCKET: test.firebasestorage.app
-          VITE_FIREBASE_MESSAGING_SENDER_ID: '000000000000'
-          VITE_FIREBASE_APP_ID: '1:000:web:test'
-          VITE_GOOGLE_MAPS_API_KEY: test
-          VITE_GEMINI_API_KEY: test
+      - name: Build production bundle
         run: npm run build
+        env:
+          VITE_FIREBASE_PROJECT_ID: civicpulse18
+          VITE_GOOGLE_MAPS_API_KEY: ""
+          VITE_GEMINI_API_KEY: ""
 
-  # ── Flutter Analysis ────────────────────────────────────
+  # ── Flutter Analysis ──────────────────────────────────────
   flutter-analyze:
+    name: Flutter Analyze
     runs-on: ubuntu-latest
-    name: Flutter Analysis
+    defaults:
+      run:
+        working-directory: mobile
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.0'
-          channel: 'stable'
+          flutter-version: "3.24.0"
+          channel: stable
           cache: true
 
       - name: Get dependencies
-        working-directory: mobile
         run: flutter pub get
 
-      - name: Analyze
-        working-directory: mobile
+      - name: Analyze code
         run: flutter analyze --no-fatal-infos
+
+  # ── Security Scan ─────────────────────────────────────────
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for secrets in codebase
+        run: |
+          echo "Scanning for potential secrets..."
+          # Fail if service_account.json is tracked
+          if git ls-files --error-unmatch '**/service_account.json' 2>/dev/null; then
+            echo "❌ ERROR: service_account.json is tracked in git!"
+            exit 1
+          fi
+          # Fail if .env files are tracked (except .env.example)
+          if git ls-files --error-unmatch '.env' 2>/dev/null; then
+            echo "❌ ERROR: .env file is tracked in git!"
+            exit 1
+          fi
+          echo "✅ No secrets found in tracked files."
+
+      - name: Check for PII patterns in pipeline code
+        run: |
+          echo "Scanning ingestion layer for PII leaks..."
+          # Verify all connectors call anonymize_at_source
+          CONNECTOR_COUNT=$(find src/ingestion/connectors -name "*.py" | wc -l)
+          ANONYMIZE_COUNT=$(grep -rl "anonymize_at_source" src/ingestion/connectors/ | wc -l)
+          echo "Connectors: $CONNECTOR_COUNT, With anonymization: $ANONYMIZE_COUNT"
+          if [ "$CONNECTOR_COUNT" -ne "$ANONYMIZE_COUNT" ]; then
+            echo "❌ ERROR: Not all connectors call anonymize_at_source!"
+            exit 1
+          fi
+          echo "✅ All connectors enforce anonymization."

@@ -151,18 +151,18 @@ export default function DispatchConsole() {
   const selectedWardData = wards.find((w) => (w.id || w.ward_id) === selectedWard);
 
   return (
-    <div className="dispatch-page page-container fade-in" id="dispatch-page">
+    <div className="dispatch-page page-container fade-in" id="dispatch-page" role="main" aria-label="Volunteer dispatch console">
       <h1 className="page-title">Dispatch Console</h1>
       <p className="page-subtitle">Match and dispatch volunteers to high-stress wards</p>
 
       {message && (
-        <div className={`dispatch-message dispatch-message--${message.type}`} id="dispatch-message">
+        <div className={`dispatch-message dispatch-message--${message.type}`} id="dispatch-message" role="alert" aria-live="assertive">
           {message.text}
         </div>
       )}
 
       {/* Ward Selection */}
-      <div className="dispatch-form glass-card" id="dispatch-form">
+      <div className="dispatch-form glass-card" id="dispatch-form" role="form" aria-label="Ward selection and volunteer matching form">
         <div className="form-row">
           <div className="form-group" style={{ flex: 2 }}>
             <label className="input-label" htmlFor="ward-select">Select Ward</label>
@@ -187,7 +187,7 @@ export default function DispatchConsole() {
 
         <div className="form-group">
           <label className="input-label">Required Skills</label>
-          <div className="skill-tags">
+          <div className="skill-tags" role="group" aria-label="Required volunteer skills">
             {SKILLS.map((skill) => (
               <button
                 key={skill}
@@ -195,6 +195,7 @@ export default function DispatchConsole() {
                 onClick={() => toggleSkill(skill)}
                 type="button"
                 id={`skill-${skill}`}
+                aria-pressed={requiredSkills.includes(skill)}
               >
                 {skill}
               </button>
@@ -218,7 +219,7 @@ export default function DispatchConsole() {
 
       {/* Volunteer Suggestions */}
       {suggestions.length > 0 && (
-        <div className="suggestions-section" id="suggestions-list">
+        <div className="suggestions-section" id="suggestions-list" role="region" aria-label="Volunteer match suggestions">
           <h2 className="section-title">Top Matches</h2>
           <div className="suggestion-cards">
             {suggestions.map((vol, idx) => (
@@ -272,7 +273,7 @@ export default function DispatchConsole() {
 
       {/* Recent Dispatches (real-time from Firestore) */}
       {dispatches.length > 0 && (
-        <div className="recent-dispatches glass-card" id="recent-dispatches">
+        <div className="recent-dispatches glass-card" id="recent-dispatches" role="region" aria-label="Recent dispatch history">
           <h3 className="section-title">Recent Dispatches <span style={{ fontSize: '10px', opacity: 0.5 }}>(Live from Firestore)</span></h3>
           <table className="data-table">
             <thead>

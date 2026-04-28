@@ -50,6 +50,7 @@ htmlcov/
 # ─── ML Models & Data ────────────────────────────────────────
 # Never commit trained models or real data to git
 src/ml/models/trained/
+models/
 data/raw/
 data/real/
 *.pkl

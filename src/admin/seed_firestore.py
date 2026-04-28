@@ -8,16 +8,18 @@ Usage:
   pip install firebase-admin
   python seed_firestore.py --project civicpulse18
 
-Note: On Spark plan, you need to generate a service account key from:
-  Firebase Console → Project Settings → Service Accounts → Generate New Private Key
-  Save it as service_account.json in this directory.
+Credentials (checked in order):
+  1. --cred /path/to/service_account.json
+  2. GOOGLE_APPLICATION_CREDENTIALS env var
+  3. ~/.config/civicpulse/service_account.json
 """
 
 import argparse
 import json
+import os
 import random
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import firebase_admin
@@ -112,7 +114,7 @@ def generate_signal_breakdown(base_css):
 def generate_css_history(base_css, days=14):
     """Generate CSS history for the past N days."""
     history = []
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     for i in range(days):
         date = now - timedelta(days=days - 1 - i)
         # Add daily variation
@@ -208,7 +210,7 @@ def seed_dispatches(db_client, count=8):
     print(f"\n📋 Seeding {count} sample dispatches...")
 
     statuses = ["pending", "confirmed", "active", "completed"]
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     for i in range(count):
         ward = random.choice(DELHI_WARDS)
@@ -273,18 +275,27 @@ def main():
     if args.cred:
         cred = credentials.Certificate(args.cred)
     else:
-        # Try to find service_account.json in script directory
+        # Check locations in priority order
+        env_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        home_path = Path.home() / ".config" / "civicpulse" / "service_account.json"
         script_dir = Path(__file__).parent
-        sa_path = script_dir / "service_account.json"
-        if sa_path.exists():
-            cred = credentials.Certificate(str(sa_path))
-            print(f"  Using credentials: {sa_path}")
+        local_path = script_dir / "service_account.json"
+
+        if env_path and Path(env_path).exists():
+            cred = credentials.Certificate(env_path)
+            print(f"  Using credentials: {env_path} (from GOOGLE_APPLICATION_CREDENTIALS)")
+        elif home_path.exists():
+            cred = credentials.Certificate(str(home_path))
+            print(f"  Using credentials: {home_path}")
+        elif local_path.exists():
+            cred = credentials.Certificate(str(local_path))
+            print(f"  Using credentials: {local_path}")
         else:
             print("\n⚠️  No service account found!")
             print("  Please do ONE of the following:")
-            print(f"  1. Place service_account.json in {script_dir}/")
-            print("  2. Run with --cred /path/to/service_account.json")
-            print("  3. Set GOOGLE_APPLICATION_CREDENTIALS env var")
+            print("  1. Run with --cred /path/to/service_account.json")
+            print("  2. Set GOOGLE_APPLICATION_CREDENTIALS env var")
+            print(f"  3. Place service_account.json in {home_path}")
             print("\n  To get a service account key:")
             print("  → Firebase Console → Project Settings → Service Accounts")
             print("  → Generate New Private Key")

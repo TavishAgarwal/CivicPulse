@@ -7,7 +7,7 @@ for fetching and validating civic signals.
 """
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import AsyncGenerator
 
 from pydantic import BaseModel, Field, field_validator
@@ -107,7 +107,7 @@ class BaseConnector(ABC):
                 location_pin=raw.get("location_pin", ""),
                 signal_type=self.signal_type,
                 intensity_score=float(raw.get("intensity_score", 0)),
-                timestamp=raw.get("timestamp", datetime.utcnow().isoformat()),
+                timestamp=raw.get("timestamp", datetime.now(timezone.utc).isoformat()),
                 confidence=float(raw.get("confidence", 0.5)),
             )
         except Exception as e:

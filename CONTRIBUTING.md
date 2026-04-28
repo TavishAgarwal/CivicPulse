@@ -16,20 +16,21 @@ Thank you for contributing to CivicPulse. This document outlines everything you 
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/your-org/civicpulse.git
-cd civicpulse
+git clone https://github.com/TavishAgarwal/CivicPulse.git
+cd CivicPulse
 
-# 2. Copy env template
-cp .env.example .env
-# Fill in your local values (Mapbox token is enough to start)
+# 2. Start the dashboard
+cd src/dashboard
+npm install
+npm run dev          # Opens at http://localhost:3000
 
-# 3. Start local stack
-docker-compose up --build
+# 3. (Optional) Seed Firestore with synthetic data
+cd src/admin
+pip install firebase-admin
+python seed_firestore.py
 
-# 4. Verify all services are healthy
-docker-compose ps
-
-# 5. Run tests
+# 4. Run Python tests
+pip install -r src/api/requirements.txt -r src/ml/requirements.txt
 pytest tests/ --cov=src --cov-report=term
 ```
 

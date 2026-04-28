@@ -4,7 +4,7 @@
 
 ## Overview
 
-CivicPulse is composed of five loosely coupled layers that form a continuous pipeline from raw civic data to actionable volunteer dispatch.
+CivicPulse is composed of five loosely coupled layers that form a continuous pipeline from raw civic data to actionable volunteer dispatch — running entirely on a **Firebase-native serverless architecture**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -17,8 +17,8 @@ CivicPulse is composed of five loosely coupled layers that form a continuous pip
 │         │                   │                   │           │
 │         ▼                   ▼                   ▼           │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
-│  │   UNIFIED    │    │  COMMUNITY   │    │  VOLUNTEER   │  │
-│  │  DATA STORE  │    │ STRESS SCORE │    │   DISPATCH   │  │
+│  │   CLOUD      │    │  COMMUNITY   │    │  VOLUNTEER   │  │
+│  │  FIRESTORE   │    │ STRESS SCORE │    │   DISPATCH   │  │
 │  └──────────────┘    └──────────────┘    └──────────────┘  │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -32,19 +32,14 @@ CivicPulse is composed of five loosely coupled layers that form a continuous pip
 - Connect to all passive data sources
 - Normalize incoming data to Unified Signal Schema
 - Anonymize all data at point of entry
-- Route to appropriate storage (stream vs. batch)
+- Write processed signals to Firestore
 
 ### Components
 
-**Stream Processor (Apache Kafka)**
-- Topics: one per signal type (`signal.pharmacy`, `signal.social`, etc.)
-- Partitioned by `location_pin` for geographic locality
-- Retention: 7 days raw, indefinite in processed store
-
-**Batch ETL Jobs**
-- Scheduled via Apache Airflow
-- Runs for weekly/daily data sources (school attendance, utility data)
-- Idempotent — safe to re-run on failure
+**Signal Connectors**
+- 6 source types: pharmacy, school, utility, social, foodbank, health
+- Each connector normalizes source-specific data to the Unified Signal Schema
+- Located in `src/ingestion/connectors/`
 
 **Anonymization Layer**
 - Runs before any data is written to storage
@@ -53,35 +48,37 @@ CivicPulse is composed of five loosely coupled layers that form a continuous pip
 - Implemented in: `src/ingestion/anonymizer.py`
 
 **Mock Layer (Dev Only)**
-- `src/ingestion/mocks/` contains static fixtures for all signal types
+- `src/ingestion/mocks/` contains matching mock generators for all 6 signal types
 - Never connects to real APIs in development mode
 - Toggled via `CIVICPULSE_ENV=development`
 
 ---
 
-## Layer 2 — Unified Data Store
+## Layer 2 — Cloud Firestore (Data Store)
 
-### Storage Architecture
+### Data Model
 
 ```
-PostgreSQL (Primary DB)
-├── signals           ← Processed, anonymized signal records
-├── wards             ← Geographic ward registry
-├── css_history       ← Time-series CSS scores per ward
-├── volunteers        ← Volunteer profiles and availability
-├── dispatches        ← Full dispatch audit log
-└── feedback          ← Post-dispatch coordinator feedback
-
-AWS S3 (Object Store)
-├── raw/              ← Raw ingested data (pre-anonymization archive)
-├── models/           ← Trained ML model artifacts
-└── reports/          ← Generated impact reports
-
-Redis (Cache)
-├── css:ward:{id}     ← Latest CSS score per ward (TTL: 1 hour)
-├── volunteer:avail   ← Volunteer availability index (TTL: 15 min)
-└── heatmap:city:{id} ← Pre-computed heatmap tiles (TTL: 30 min)
+Cloud Firestore (asia-south1 / Mumbai region)
+├── cities/{cityId}/wards/{wardId}         ← Ward records with live CSS
+│   ├── css: 72.4                          ← Current Community Stress Score
+│   ├── signalBreakdown: { ... }           ← Per-source signal intensities
+│   └── cssHistory/{historyId}             ← 30-day CSS time series
+│
+├── volunteers/{volunteerId}               ← Volunteer profiles
+│   ├── skills, fatigue_score, availability
+│   └── performance_rating, max_radius_km
+│
+└── dispatches/{dispatchId}                ← Full dispatch audit log
+    ├── wardId, volunteerId, status
+    └── reason, createdAt, matchScore
 ```
+
+### Why Firestore
+- **Real-time streams** — Dashboard and mobile app use `onSnapshot()` for live updates
+- **Serverless** — No database servers to manage or scale
+- **Data residency** — `asia-south1` (Mumbai) for all Indian city data
+- **Security Rules** — Row-level access control via `firestore.rules`
 
 ---
 
@@ -102,16 +99,16 @@ Redis (Cache)
 
 **Training:**
 - Minimum 60 days of historical data required
-- Labels: confirmed distress events from NGO field reports
+- Train locally via `python scripts/train_models.py`
 - Validation: 80/20 temporal split (no data leakage)
-- Retraining: weekly, triggered by `scripts/retrain.sh`
+- Accuracy floor: precision ≥ 0.75 before deployment
 
 **Files:**
 ```
 src/ml/
 ├── fusion_model.py       ← Model class, train(), predict()
 ├── feature_engineering.py← Feature extraction pipeline
-├── model_registry.py     ← Version management, A/B rollout
+├── model_registry.py     ← Version management
 └── evaluation.py         ← Precision, recall, fairness metrics
 ```
 
@@ -125,7 +122,7 @@ src/ml/
 
 **Output:** Binary flag + severity score (0.0–1.0)
 
-**Trigger:** Runs every 4 hours on rolling signal window
+**Trigger:** Runs on rolling signal window
 
 ---
 
@@ -152,7 +149,7 @@ match_score = (
 
 ---
 
-### RLHF Layer (Phase 4)
+### RLHF Layer (Phase 4 — Future)
 
 - Coordinator approve/reject decisions are logged as reward signals
 - Batch update to matching weights every 30 days
@@ -161,78 +158,90 @@ match_score = (
 
 ---
 
-## Layer 4 — API Layer
+## Layer 4 — Firebase Cloud Functions
 
-### Framework: FastAPI (Python 3.11+)
+### Runtime: Node.js 20 (Firebase Cloud Functions v2)
+
+**Functions:**
+
+| Function | Trigger | Purpose |
+|---|---|---|
+| `onCSSUpdate` | Firestore `onDocumentUpdated` | Auto-dispatch when CSS ≥ 76 |
+| `geminiProxy` | HTTPS Callable | Secure Gemini API proxy (hides API key from client) |
 
 **Design Principles:**
-- Stateless — all state in DB/cache, not in server memory
-- Async throughout — `async/await` for all I/O operations
-- Versioned — all routes under `/api/v1/`
-- Contract-first — Pydantic models define all request/response shapes
+- Serverless — no servers to manage, scales automatically
+- Event-driven — functions trigger on data changes
+- Secure — Gemini API key stays server-side, never exposed to client
 
-**Auth:** JWT Bearer tokens, issued by auth service, 8-hour expiry
-**Rate limiting:** 100 req/min per token (Redis-backed sliding window)
-**Docs:** Auto-generated at `/docs` (Swagger) and `/redoc`
+**Files:**
+```
+functions/
+├── index.js       ← All Cloud Functions
+└── package.json   ← Dependencies
+```
 
 ---
 
-## Layer 5 — Frontend Dashboard
+## Layer 5 — Frontend Applications
 
-### Stack: React 18 + Mapbox GL JS + Tailwind CSS
+### Web Dashboard: React 18 + Vite + Google Maps
 
 **Key Views:**
 
-**Heatmap View**
-- Ward-level CSS overlaid on city map
-- Color gradient: green → yellow → orange → red
-- Time scrubber: replay last 30 days
-- Click-through to ward detail panel
+| View | Description |
+|---|---|
+| **Heatmap** | Google Maps–based ward-level CSS visualization with color-coded markers |
+| **Dispatch Console** | Live queue of wards at CSS ≥ 56, one-click volunteer approval |
+| **Ward Detail** | CSS score, signal decomposition radar chart, AI Crisis Brief (Gemini) |
+| **Volunteer Registry** | Search/filter by skill, location, availability |
+| **Impact Reports** | Aggregated KPIs — dispatches, response time, CSS trends |
+| **Fairness Audit** | Equity analysis across ward clusters |
 
-**Dispatch Console**
-- Live queue of wards at CSS ≥ 56
-- One-tap volunteer approval
-- Active deployment tracker (live map pins)
+**Stack:** React 18, Vite, React Router v6, Google Maps API, Recharts, Lucide icons, Vanilla CSS
 
-**Volunteer Registry**
-- Search/filter by skill, location, availability
-- Profile cards with performance history
-- Bulk import via CSV
+### Mobile App: Flutter 3.41 + Dart 3.7
 
-**Impact Dashboard**
-- Dispatches over time
-- Average response time trend
-- CSS accuracy vs. confirmed distress events
-- Volunteer utilization heatmap
+| Screen | Description |
+|---|---|
+| **Wards** | Live ward status feed via Firestore streams |
+| **Dispatches** | Real-time dispatch feed with Accept/Complete/Decline |
+| **Ward Detail** | CSS hero score, signal breakdown, 14-day trend |
+| **Profile** | Volunteer stats, skills, notification preferences |
+
+**Integration:** Firebase Core, Auth, Firestore, Cloud Messaging (FCM)
 
 ---
 
 ## Infrastructure & Deployment
 
-### Local Development
-```bash
-docker-compose up   # Starts: Postgres, Redis, Kafka, API, Dashboard
+### Firebase Project: `civicpulse18`
+
+```
+Firebase Hosting     ← React dashboard (global CDN)
+Cloud Firestore      ← Primary database (asia-south1)
+Firebase Auth        ← User authentication (email/password + demo mode)
+Cloud Functions v2   ← Serverless backend logic (Node.js 20)
+Cloud Messaging      ← Push notifications to mobile app (FCM)
 ```
 
-### Cloud (AWS)
+### CI/CD (GitHub Actions)
+
 ```
-ECS Fargate        ← API and ingestion services (auto-scaling)
-RDS PostgreSQL     ← Primary database (Multi-AZ in production)
-ElastiCache Redis  ← Caching layer
-MSK (Kafka)        ← Managed Kafka cluster
-S3                 ← Object storage
-CloudFront         ← CDN for dashboard static assets
-Lambda             ← Scheduled batch ETL jobs
-SageMaker          ← ML model training and hosting
+.github/workflows/ci.yml
+├── python-tests     → pytest with coverage (≥70%)
+├── dashboard-build  → Vite production build verification
+├── flutter-analyze  → Dart static analysis
+└── security-scan    → Secrets detection + PII enforcement
 ```
 
-### CI/CD
-```
-GitHub Actions
-├── on: pull_request → lint, unit tests, coverage check
-├── on: push/staging → integration tests, staging deploy
-└── on: tag/release  → production deploy (manual approval gate)
-```
+### Deployment Flow
+
+| Stage | Branch | Auto-deploy | Real Data |
+|---|---|---|---|
+| Development | `dev` | No | No (synthetic only) |
+| Staging | `staging` | On merge | No (anonymized sample) |
+| Production | `main` | On tag | Yes |
 
 ---
 
@@ -247,8 +256,8 @@ GitHub Actions
 
 ## Scalability Notes
 
-- Each city is a fully isolated tenant (separate DB schema, Kafka namespace)
-- Horizontal scaling: API layer stateless, scales via ECS task count
+- Each city is a fully isolated tenant (separate Firestore collection)
 - CSS computation is embarrassingly parallel — one worker per city
-- Heatmap tiles pre-computed and cached; dashboard never hits ML layer directly
+- Dashboard reads are served via Firestore real-time listeners (no polling)
+- Cloud Functions auto-scale with demand
 - Target: support 50 concurrent cities without architectural changes

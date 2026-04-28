@@ -1,5 +1,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Google_Solution_Challenge-2026-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Google Solution Challenge 2026" />
+  <img src="https://github.com/TavishAgarwal/CivicPulse/actions/workflows/ci.yml/badge.svg" alt="CI Status" />
   <img src="https://img.shields.io/badge/SDG_11-Sustainable_Cities-F99D26?style=for-the-badge" alt="SDG 11" />
   <img src="https://img.shields.io/badge/SDG_17-Partnerships-19486A?style=for-the-badge" alt="SDG 17" />
 </p>
@@ -346,6 +347,13 @@ CivicPulse/
 │   ├── test_matcher.py
 │   └── ...                        # 17 test files
 │
+├── scripts/
+│   └── train_models.py            # 🧠 ML model training (XGBoost + IsoForest)
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml                 # 🔄 CI pipeline (pytest, flutter analyze, build)
+│
 ├── data/
 │   ├── schemas/                   # JSON Schema definitions
 │   └── synthetic/                 # Synthetic data generators
@@ -421,6 +429,17 @@ Each ward detail page includes an **AI Crisis Brief** button powered by Gemini 2
 
 If the Gemini API is unavailable, the system falls back to **intelligent local generation** using signal-type-specific insight mappings — ensuring the feature always works.
 
+### Training Models Locally
+
+To train the XGBoost fusion model and Isolation Forest detector:
+
+```bash
+pip install xgboost scikit-learn numpy joblib
+python scripts/train_models.py
+```
+
+This generates model artifacts in `models/` with a training report (`training_report.json`).
+
 ---
 
 ## 🔐 Data Privacy & Security
@@ -447,14 +466,15 @@ pip install -r src/api/requirements.txt -r src/ml/requirements.txt
 pytest tests/ -v --cov=src --cov-report=term
 ```
 
-### Flutter Analysis
+CI pipeline runs automatically on push/PR:
 
 ```bash
-cd mobile && flutter analyze
-# ✅ No issues found
+# GitHub Actions CI includes:
+# ✅ Python tests with coverage (pytest --cov-fail-under=70)
+# ✅ Dashboard build verification (npm ci && npm run build)
+# ✅ Flutter static analysis (flutter analyze)
+# ✅ Security scan (secrets detection + PII enforcement)
 ```
-
-CI gate: PRs blocked if coverage drops below **80%**.
 
 ---
 

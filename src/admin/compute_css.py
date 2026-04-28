@@ -17,9 +17,10 @@ This script:
 """
 
 import argparse
+import os
 import random
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -158,7 +159,7 @@ def update_ward_css(db_client, city_id="delhi"):
             anomalies += 1
 
         # Write updated CSS back to Firestore
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         update_data = {
             "currentCSS": new_css,
             "cssStatus": css_status(new_css),
@@ -172,7 +173,7 @@ def update_ward_css(db_client, city_id="delhi"):
         # Add to CSS history
         history_ref.document(today).set({
             "date": today,
-            "computedAt": datetime.utcnow().isoformat() + "Z",
+            "computedAt": datetime.now(timezone.utc).isoformat() + "Z",
             "cssScore": new_css,
             "signalBreakdown": breakdown,
             "anomaly": {"detected": is_anomaly, "severity": severity},
@@ -196,19 +197,27 @@ def main():
     print("=" * 60)
     print("  CivicPulse — ML CSS Computation Engine")
     print(f"  Project: {args.project} | City: {args.city}")
-    print(f"  Time: {datetime.utcnow().isoformat()}Z")
+    print(f"  Time: {datetime.now(timezone.utc).isoformat()}Z")
     print("=" * 60)
 
-    # Initialize Firebase
-    script_dir = Path(__file__).parent
+    # Initialize Firebase — check credentials in priority order
     if args.cred:
         cred = credentials.Certificate(args.cred)
     else:
-        sa_path = script_dir / "service_account.json"
-        if sa_path.exists():
-            cred = credentials.Certificate(str(sa_path))
+        env_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        home_path = Path.home() / ".config" / "civicpulse" / "service_account.json"
+        script_dir = Path(__file__).parent
+        local_path = script_dir / "service_account.json"
+
+        if env_path and Path(env_path).exists():
+            cred = credentials.Certificate(env_path)
+        elif home_path.exists():
+            cred = credentials.Certificate(str(home_path))
+        elif local_path.exists():
+            cred = credentials.Certificate(str(local_path))
         else:
-            print(f"\n⚠️  Place service_account.json in {script_dir}/")
+            print("\n⚠️  No service account found!")
+            print("  Set GOOGLE_APPLICATION_CREDENTIALS or place key in ~/.config/civicpulse/")
             return
 
     if not firebase_admin._apps:

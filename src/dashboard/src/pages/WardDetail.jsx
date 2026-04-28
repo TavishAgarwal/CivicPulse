@@ -149,9 +149,9 @@ export default function WardDetail() {
   const cssLabel = ward.css_score >= 76 ? 'critical' : ward.css_score >= 56 ? 'high' : ward.css_score >= 31 ? 'elevated' : 'stable';
 
   return (
-    <div className="ward-detail page-container fade-in" id="ward-detail-page">
-      <button className="btn btn-secondary btn-sm" onClick={() => navigate(-1)} id="ward-back-btn">
-        <ArrowLeft size={14} /> Back
+    <div className="ward-detail page-container fade-in" id="ward-detail-page" role="main" aria-label={`Ward detail for ${ward.ward_code || ward.name}`}>
+      <button className="btn btn-secondary btn-sm" onClick={() => navigate(-1)} id="ward-back-btn" aria-label="Go back to previous page">
+        <ArrowLeft size={14} aria-hidden="true" /> Back
       </button>
 
       <div className="ward-header glass-card">
@@ -159,7 +159,7 @@ export default function WardDetail() {
           <h1 className="ward-name">{ward.ward_code || ward.name}</h1>
           <span className={`badge badge-${cssLabel}`}>{cssLabel.toUpperCase()}</span>
         </div>
-        <div className="ward-css-score">
+        <div className="ward-css-score" role="status" aria-label={`Community Stress Score: ${(ward.css_score || 0).toFixed(1)} out of 100, ${cssLabel}`}>
           <span className="css-number" style={{ color: `var(--color-${cssLabel})` }}>
             {(ward.css_score || 0).toFixed(1)}
           </span>
@@ -168,7 +168,7 @@ export default function WardDetail() {
       </div>
 
       {/* 🤖 AI Crisis Brief (Gemini) */}
-      <div className="glass-card gemini-card" id="gemini-crisis-brief" style={{ padding: '16px 20px' }}>
+      <div className="glass-card gemini-card" id="gemini-crisis-brief" style={{ padding: '16px 20px' }} role="region" aria-label="AI crisis brief powered by Gemini">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <h3 className="section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Sparkles size={16} style={{ color: '#1DE9B6' }} /> AI Crisis Brief
@@ -206,7 +206,7 @@ export default function WardDetail() {
 
       {/* Anomaly Alert */}
       {ward.anomaly?.detected && (
-        <div className="anomaly-alert glass-card" id="anomaly-alert">
+        <div className="anomaly-alert glass-card" id="anomaly-alert" role="alert" aria-live="assertive">
           <span className="anomaly-icon"><AlertTriangle size={20} /></span>
           <div>
             <p className="anomaly-title">Early Warning Pulse Detected</p>
@@ -227,11 +227,11 @@ export default function WardDetail() {
       )}
 
       {/* Signal Breakdown */}
-      <div className="signal-grid" id="signal-breakdown">
+      <div className="signal-grid" id="signal-breakdown" role="list" aria-label="Signal source breakdown">
         {(ward.signals || []).map((sig) => {
           const IconComp = SIGNAL_ICONS[sig.signal_type] || Radio;
           return (
-            <div className="signal-card glass-card" key={sig.signal_type}>
+            <div className="signal-card glass-card" key={sig.signal_type} role="listitem" aria-label={`${sig.signal_type} signal: intensity ${(sig.intensity_24h || 0).toFixed(2)}`}>
               <span className="signal-icon"><IconComp size={20} /></span>
               <div>
                 <p className="signal-type">{sig.signal_type}</p>
